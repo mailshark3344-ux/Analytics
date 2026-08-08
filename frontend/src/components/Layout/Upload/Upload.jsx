@@ -8,18 +8,24 @@ import {
 
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 
+
 function Upload({
     setColumns,
     setDatasetData,
-    onUploadComplete
+    onUploadComplete,
+    onDatasetLoaded
 }) {
+
     const fileInputRef = useRef(null);
 
     const [fileName, setFileName] = useState("");
+
     const [loading, setLoading] = useState(false);
 
     const [successOpen, setSuccessOpen] = useState(false);
+
     const [errorOpen, setErrorOpen] = useState(false);
+
     const [errorMessage, setErrorMessage] = useState("");
 
 
@@ -28,11 +34,13 @@ function Upload({
     // ============================================================
 
     const handleButtonClick = () => {
+
         if (loading) {
             return;
         }
 
         fileInputRef.current?.click();
+
     };
 
 
@@ -41,19 +49,26 @@ function Upload({
     // ============================================================
 
     const showError = (message) => {
+
         setErrorMessage(message);
+
         setErrorOpen(true);
+
     };
 
 
     // ============================================================
-    // RESET INPUT
+    // RESET FILE INPUT
     // ============================================================
 
     const resetFileInput = () => {
+
         if (fileInputRef.current) {
+
             fileInputRef.current.value = "";
+
         }
+
     };
 
 
@@ -62,31 +77,60 @@ function Upload({
     // ============================================================
 
     const handleFileChange = async (event) => {
-        const file = event.target.files?.[0];
+
+        const file =
+            event.target.files?.[0];
+
 
         if (!file) {
+
             return;
+
         }
 
-        console.log("====================================");
-        console.log("FILE SELECTED");
-        console.log("Name:", file.name);
-        console.log("Size:", file.size);
-        console.log("Type:", file.type);
-        console.log("====================================");
+
+        console.log(
+            "===================================="
+        );
+
+        console.log(
+            "FILE SELECTED"
+        );
+
+        console.log(
+            "Name:",
+            file.name
+        );
+
+        console.log(
+            "Size:",
+            file.size
+        );
+
+        console.log(
+            "Type:",
+            file.type
+        );
+
+        console.log(
+            "===================================="
+        );
 
 
         // ========================================================
         // VALIDATE FILE EXTENSION
         // ========================================================
 
-        const lowerName = file.name.toLowerCase();
+        const lowerName =
+            file.name.toLowerCase();
+
 
         const allowedExtensions = [
             ".csv",
             ".xlsx",
             ".xls"
         ];
+
 
         const validExtension =
             allowedExtensions.some(
@@ -96,12 +140,15 @@ function Upload({
 
 
         if (!validExtension) {
+
             showError(
                 "Please select a CSV, XLSX or XLS file."
             );
 
             resetFileInput();
+
             return;
+
         }
 
 
@@ -110,16 +157,26 @@ function Upload({
         // ========================================================
 
         if (file.size === 0) {
+
             showError(
                 "The selected file is empty."
             );
 
             resetFileInput();
+
             return;
+
         }
 
 
-        setFileName(file.name);
+        // ========================================================
+        // SHOW SELECTED FILE NAME
+        // ========================================================
+
+        setFileName(
+            file.name
+        );
+
         setLoading(true);
 
 
@@ -129,7 +186,9 @@ function Upload({
             // CREATE FORM DATA
             // ====================================================
 
-            const formData = new FormData();
+            const formData =
+                new FormData();
+
 
             formData.append(
                 "file",
@@ -146,13 +205,14 @@ function Upload({
             // SEND TO FASTAPI
             // ====================================================
 
-            const response = await fetch(
-                "http://127.0.0.1:8000/upload",
-                {
-                    method: "POST",
-                    body: formData
-                }
-            );
+            const response =
+                await fetch(
+                    "http://127.0.0.1:8000/upload",
+                    {
+                        method: "POST",
+                        body: formData
+                    }
+                );
 
 
             console.log(
@@ -184,6 +244,7 @@ function Upload({
                 let message =
                     `Upload failed (${response.status})`;
 
+
                 try {
 
                     const errorData =
@@ -191,21 +252,31 @@ function Upload({
                             responseText
                         );
 
+
                     if (errorData.detail) {
+
                         message =
                             errorData.detail;
+
                     }
 
-                } catch {
+                }
+                catch {
 
                     if (responseText) {
+
                         message =
                             responseText;
+
                     }
 
                 }
 
-                throw new Error(message);
+
+                throw new Error(
+                    message
+                );
+
             }
 
 
@@ -215,6 +286,7 @@ function Upload({
 
             let analysis;
 
+
             try {
 
                 analysis =
@@ -222,17 +294,43 @@ function Upload({
                         responseText
                     );
 
-            } catch {
+            }
+            catch {
 
                 throw new Error(
                     "FastAPI returned invalid JSON."
                 );
+
             }
 
 
             console.log(
                 "Upload analysis:",
                 analysis
+            );
+
+
+            // ====================================================
+            // VALIDATE FILENAME
+            // ====================================================
+
+            const uploadedFilename =
+                analysis.filename ||
+                file.name;
+
+
+            if (!uploadedFilename) {
+
+                throw new Error(
+                    "FastAPI did not return a dataset filename."
+                );
+
+            }
+
+
+            console.log(
+                "Active dataset:",
+                uploadedFilename
             );
 
 
@@ -283,7 +381,7 @@ function Upload({
 
 
             // ====================================================
-            // UPDATE REACT COLUMNS
+            // UPDATE COLUMNS
             // ====================================================
 
             if (setColumns) {
@@ -296,7 +394,7 @@ function Upload({
 
 
             // ====================================================
-            // UPDATE REACT DATA
+            // UPDATE DATA
             // ====================================================
 
             if (setDatasetData) {
@@ -309,7 +407,39 @@ function Upload({
 
 
             // ====================================================
-            // RESET CALCULATED FIELDS / CHARTS
+            // SEND COMPLETE ANALYSIS TO DASHBOARD
+            //
+            // THIS IS WHAT UPDATES:
+            //
+            // Current Dataset
+            // Dataset Name
+            // Rows
+            // Columns
+            // Charts
+            // ====================================================
+
+            if (onDatasetLoaded) {
+
+                onDatasetLoaded({
+
+                    ...analysis,
+
+                    // Always make sure filename exists
+                    filename:
+                        uploadedFilename
+
+                });
+
+            }
+
+
+            // ====================================================
+            // DO NOT RESET DATASET HERE
+            //
+            // onDatasetLoaded() handles the dataset state.
+            //
+            // If onUploadComplete is only used for calculated
+            // fields/charts, you can keep it here.
             // ====================================================
 
             if (onUploadComplete) {
@@ -320,7 +450,7 @@ function Upload({
 
 
             // ====================================================
-            // SUCCESS
+            // SUCCESS LOG
             // ====================================================
 
             console.log(
@@ -332,8 +462,8 @@ function Upload({
             );
 
             console.log(
-                "File:",
-                analysis.filename
+                "Active Dataset:",
+                uploadedFilename
             );
 
             console.log(
@@ -351,10 +481,14 @@ function Upload({
             );
 
 
+            // ====================================================
+            // SUCCESS MESSAGE
+            // ====================================================
+
             setSuccessOpen(true);
 
-
-        } catch (error) {
+        }
+        catch (error) {
 
             console.error(
                 "===================================="
@@ -385,7 +519,8 @@ function Upload({
                     "Cannot connect to FastAPI. Make sure the backend is running at http://127.0.0.1:8000"
                 );
 
-            } else {
+            }
+            else {
 
                 showError(
                     error.message ||
@@ -394,13 +529,15 @@ function Upload({
 
             }
 
-        } finally {
+        }
+        finally {
 
             setLoading(false);
 
             resetFileInput();
 
         }
+
     };
 
 
@@ -409,6 +546,7 @@ function Upload({
     // ============================================================
 
     return (
+
         <>
 
             {/* ================================================= */}
@@ -416,13 +554,21 @@ function Upload({
             {/* ================================================= */}
 
             <input
+
                 ref={fileInputRef}
+
                 type="file"
+
                 accept=".csv,.xlsx,.xls"
+
                 style={{
                     display: "none"
                 }}
-                onChange={handleFileChange}
+
+                onChange={
+                    handleFileChange
+                }
+
             />
 
 
@@ -431,28 +577,46 @@ function Upload({
             {/* ================================================= */}
 
             <Button
+
                 variant="contained"
+
                 startIcon={
                     <UploadFileIcon />
                 }
+
                 disabled={loading}
-                onClick={handleButtonClick}
+
+                onClick={
+                    handleButtonClick
+                }
+
                 sx={{
-                    backgroundColor: "#2563eb",
+
+                    backgroundColor:
+                        "#2563eb",
 
                     "&:hover": {
-                        backgroundColor: "#1d4ed8"
+
+                        backgroundColor:
+                            "#1d4ed8"
+
                     },
 
                     "&:disabled": {
-                        backgroundColor: "#93c5fd"
+
+                        backgroundColor:
+                            "#93c5fd"
+
                     }
+
                 }}
+
             >
 
-                {loading
-                    ? "Uploading..."
-                    : "Upload CSV / Excel"
+                {
+                    loading
+                        ? "Uploading..."
+                        : "Upload CSV / Excel"
                 }
 
             </Button>
@@ -463,22 +627,35 @@ function Upload({
             {/* ================================================= */}
 
             <Snackbar
-                open={successOpen}
-                autoHideDuration={4000}
+
+                open={
+                    successOpen
+                }
+
+                autoHideDuration={
+                    4000
+                }
+
                 onClose={() =>
                     setSuccessOpen(false)
                 }
+
             >
 
                 <Alert
+
                     severity="success"
+
                     variant="filled"
+
                     onClose={() =>
                         setSuccessOpen(false)
                     }
+
                 >
 
                     {fileName}
+
                     {" uploaded successfully"}
 
                 </Alert>
@@ -491,19 +668,31 @@ function Upload({
             {/* ================================================= */}
 
             <Snackbar
-                open={errorOpen}
-                autoHideDuration={7000}
+
+                open={
+                    errorOpen
+                }
+
+                autoHideDuration={
+                    7000
+                }
+
                 onClose={() =>
                     setErrorOpen(false)
                 }
+
             >
 
                 <Alert
+
                     severity="error"
+
                     variant="filled"
+
                     onClose={() =>
                         setErrorOpen(false)
                     }
+
                 >
 
                     {errorMessage}
@@ -513,7 +702,10 @@ function Upload({
             </Snackbar>
 
         </>
+
     );
+
 }
+
 
 export default Upload;

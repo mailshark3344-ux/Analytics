@@ -8,13 +8,18 @@ import {
     Typography,
     Divider,
     Box,
-    Chip
+    Chip,
+    Button,
+    CircularProgress
 } from "@mui/material";
 
 function Sidebar({
     columns = [],
     calculatedFields = [],
-    datasetName = ""
+    datasetName = "",
+    datasets = [],
+    datasetsLoading = false,
+    onDatasetSelect = null
 }) {
 
     // ============================================================
@@ -124,6 +129,77 @@ function Sidebar({
 
 
     // ============================================================
+    // FORMAT FILE SIZE
+    // ============================================================
+
+    const formatFileSize = (
+        bytes
+    ) => {
+
+        if (
+            !bytes ||
+            bytes <= 0
+        ) {
+
+            return "0 KB";
+
+        }
+
+
+        if (
+            bytes < 1024
+        ) {
+
+            return `${bytes} B`;
+
+        }
+
+
+        if (
+            bytes < 1024 * 1024
+        ) {
+
+            return `${(
+                bytes / 1024
+            ).toFixed(1)} KB`;
+
+        }
+
+
+        return `${(
+            bytes /
+            (1024 * 1024)
+        ).toFixed(1)} MB`;
+
+    };
+
+
+    // ============================================================
+    // SELECT DATASET
+    // ============================================================
+
+    const handleDatasetSelect = (
+        filename
+    ) => {
+
+        if (
+            !filename ||
+            !onDatasetSelect
+        ) {
+
+            return;
+
+        }
+
+
+        onDatasetSelect(
+            filename
+        );
+
+    };
+
+
+    // ============================================================
     // RENDER
     // ============================================================
 
@@ -152,7 +228,8 @@ function Sidebar({
 
                     overflowY: "auto",
 
-                    background: "#f8fafc"
+                    background:
+                        "#f8fafc"
 
                 }
 
@@ -186,6 +263,234 @@ function Sidebar({
 
 
                 <List>
+
+                    {/* ================================================= */}
+                    {/* DATASETS AVAILABLE IN MINIO */}
+                    {/* ================================================= */}
+
+                    <ListItem>
+
+                        <ListItemText
+
+                            primary="☁️ MinIO Datasets"
+
+                            secondary={
+                                datasets.length > 0
+                                    ? `${datasets.length} dataset${
+                                        datasets.length === 1
+                                            ? ""
+                                            : "s"
+                                    } available`
+                                    : "No datasets found"
+                            }
+
+                        />
+
+                    </ListItem>
+
+
+                    {/* ================================================= */}
+                    {/* DATASET LIST */}
+                    {/* ================================================= */}
+
+                    {datasetsLoading ? (
+
+                        <ListItem>
+
+                            <Box
+                                sx={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 1
+                                }}
+                            >
+
+                                <CircularProgress
+                                    size={18}
+                                />
+
+                                <Typography
+                                    variant="body2"
+                                    color="text.secondary"
+                                >
+                                    Loading datasets...
+                                </Typography>
+
+                            </Box>
+
+                        </ListItem>
+
+                    ) : datasets.length === 0 ? (
+
+                        <ListItem>
+
+                            <ListItemText
+
+                                primary="No datasets available"
+
+                                secondary={
+                                    "Upload a CSV or Excel file to MinIO."
+                                }
+
+                            />
+
+                        </ListItem>
+
+                    ) : (
+
+                        datasets.map(
+                            (
+                                dataset,
+                                index
+                            ) => {
+
+                                const filename =
+                                    typeof dataset === "string"
+                                        ? dataset
+                                        : dataset.name;
+
+                                const size =
+                                    typeof dataset === "object"
+                                        ? dataset.size
+                                        : 0;
+
+                                const isSelected =
+                                    filename === datasetName;
+
+
+                                return (
+
+                                    <ListItem
+                                        key={
+                                            `${filename}-${index}`
+                                        }
+
+                                        disablePadding
+
+                                        sx={{
+                                            px: 1
+                                        }}
+                                    >
+
+                                        <Button
+
+                                            fullWidth
+
+                                            variant={
+                                                isSelected
+                                                    ? "contained"
+                                                    : "text"
+                                            }
+
+                                            onClick={() =>
+                                                handleDatasetSelect(
+                                                    filename
+                                                )
+                                            }
+
+                                            sx={{
+
+                                                justifyContent:
+                                                    "flex-start",
+
+                                                textTransform:
+                                                    "none",
+
+                                                textAlign:
+                                                    "left",
+
+                                                borderRadius:
+                                                    2,
+
+                                                px: 1.5,
+
+                                                py: 1,
+
+                                                color:
+                                                    isSelected
+                                                        ? "#fff"
+                                                        : "#334155",
+
+                                                backgroundColor:
+                                                    isSelected
+                                                        ? "#2563eb"
+                                                        : "transparent",
+
+                                                "&:hover": {
+
+                                                    backgroundColor:
+                                                        isSelected
+                                                            ? "#1d4ed8"
+                                                            : "#e2e8f0"
+
+                                                }
+
+                                            }}
+
+                                        >
+
+                                            <Box
+                                                sx={{
+                                                    width: "100%"
+                                                }}
+                                            >
+
+                                                <Typography
+                                                    variant="body2"
+                                                    fontWeight={
+                                                        isSelected
+                                                            ? "bold"
+                                                            : "medium"
+                                                    }
+                                                    sx={{
+                                                        wordBreak:
+                                                            "break-word"
+                                                    }}
+                                                >
+
+                                                    📄 {filename}
+
+                                                </Typography>
+
+
+                                                {size > 0 && (
+
+                                                    <Typography
+                                                        variant="caption"
+                                                        sx={{
+                                                            opacity:
+                                                                0.75
+                                                        }}
+                                                    >
+
+                                                        {formatFileSize(
+                                                            size
+                                                        )}
+
+                                                    </Typography>
+
+                                                )}
+
+                                            </Box>
+
+                                        </Button>
+
+                                    </ListItem>
+
+                                );
+
+                            }
+                        )
+
+                    )}
+
+
+                    <Divider
+                        sx={{
+                            my: 1
+                        }}
+                    />
+
 
                     {/* ================================================= */}
                     {/* CURRENT DATASET */}
@@ -289,7 +594,7 @@ function Sidebar({
 
 
                     {/* ================================================= */}
-                    {/* COLUMNS */}
+                    {/* AVAILABLE COLUMNS */}
                     {/* ================================================= */}
 
                     <ListItem>
@@ -556,7 +861,6 @@ function Sidebar({
         </Drawer>
 
     );
-
 }
 
 export default Sidebar;

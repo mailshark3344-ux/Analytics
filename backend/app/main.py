@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .minio_client import client, bucket_name
+from .file_reader import read_uploaded_file
 
 import pandas as pd
 import io
@@ -63,7 +64,6 @@ def health():
 
     try:
 
-        # Check that MinIO is reachable
         client.list_buckets()
 
         return {
@@ -83,9 +83,6 @@ def health():
 
 # ============================================================
 # LIST DATASETS FROM MINIO
-#
-# This is used by the frontend to show files already present
-# in the bucket.
 # ============================================================
 
 @app.get("/datasets")
@@ -110,7 +107,10 @@ def list_datasets():
 
             filename_lower = filename.lower()
 
+            # ------------------------------------------------
             # Only show supported datasets
+            # ------------------------------------------------
+
             if not filename_lower.endswith(
                 (".csv", ".xlsx", ".xls")
             ):
@@ -131,24 +131,23 @@ def list_datasets():
 
             })
 
-
+        # ----------------------------------------------------
         # Newest first
+        # ----------------------------------------------------
+
         datasets.sort(
             key=lambda x: x["last_modified"] or "",
             reverse=True
         )
 
-
         print(
             f"Found {len(datasets)} datasets"
         )
-
 
         return {
             "bucket": bucket_name,
             "datasets": datasets
         }
-
 
     except Exception as e:
 
@@ -175,6 +174,8 @@ def list_datasets():
 #    ↓
 # MinIO
 #    ↓
+# file_reader.py
+#    ↓
 # Pandas
 #    ↓
 # Analysis
@@ -189,9 +190,9 @@ async def upload_file(
 
     try:
 
-        # ----------------------------------------------------
-        # Validate filename
-        # ----------------------------------------------------
+        # ====================================================
+        # VALIDATE FILENAME
+        # ====================================================
 
         if not file.filename:
 
@@ -200,22 +201,19 @@ async def upload_file(
                 detail="Filename is missing"
             )
 
-
         filename = file.filename.strip()
 
         filename_lower = filename.lower()
 
-
-        # ----------------------------------------------------
-        # Supported files
-        # ----------------------------------------------------
+        # ====================================================
+        # SUPPORTED FILES
+        # ====================================================
 
         supported_extensions = (
             ".csv",
             ".xlsx",
             ".xls"
         )
-
 
         if not filename_lower.endswith(
             supported_extensions
@@ -229,13 +227,11 @@ async def upload_file(
                 )
             )
 
-
-        # ----------------------------------------------------
-        # Read browser upload
-        # ----------------------------------------------------
+        # ====================================================
+        # READ BROWSER UPLOAD
+        # ====================================================
 
         data = await file.read()
-
 
         if not data:
 
@@ -243,7 +239,6 @@ async def upload_file(
                 status_code=400,
                 detail="Uploaded file is empty"
             )
-
 
         print("=" * 60)
 
@@ -255,9 +250,10 @@ async def upload_file(
             f"File size: {len(data)} bytes"
         )
 
-
         # ====================================================
-        # FIRST VALIDATE THE DATASET
+        # READ DATASET
+        #
+        # This now uses file_reader.py
         # ====================================================
 
         df = read_uploaded_file(
@@ -265,6 +261,9 @@ async def upload_file(
             filename
         )
 
+        # ====================================================
+        # VALIDATE DATAFRAME
+        # ====================================================
 
         if df.empty:
 
@@ -276,7 +275,6 @@ async def upload_file(
                 )
             )
 
-
         if len(df.columns) == 0:
 
             raise HTTPException(
@@ -286,7 +284,6 @@ async def upload_file(
                     "contains no columns."
                 )
             )
-
 
         # ====================================================
         # STORE ORIGINAL FILE IN MINIO
@@ -306,13 +303,12 @@ async def upload_file(
                 file.content_type
                 or "application/octet-stream"
             )
-        )
 
+        )
 
         print(
             f"Stored in MinIO: {filename}"
         )
-
 
         print(
             f"Dataset loaded: "
@@ -320,6 +316,10 @@ async def upload_file(
             f"{len(df.columns)} columns"
         )
 
+        print(
+            "Columns:",
+            df.columns.tolist()
+        )
 
         # ====================================================
         # CREATE ANALYSIS
@@ -330,21 +330,17 @@ async def upload_file(
             filename
         )
 
-
         print(
             "Analysis created successfully"
         )
 
         print("=" * 60)
 
-
         return result
-
 
     except HTTPException:
 
         raise
-
 
     except Exception as e:
 
@@ -359,7 +355,6 @@ async def upload_file(
         )
 
         print("=" * 60)
-
 
         raise HTTPException(
             status_code=500,
@@ -382,6 +377,10 @@ def analyze_dataset(
 
     try:
 
+        # ====================================================
+        # VALIDATE FILENAME
+        # ====================================================
+
         if not filename:
 
             raise HTTPException(
@@ -389,9 +388,7 @@ def analyze_dataset(
                 detail="Filename is missing"
             )
 
-
         filename_lower = filename.lower()
-
 
         if not filename_lower.endswith(
             (".csv", ".xlsx", ".xls")
@@ -402,15 +399,13 @@ def analyze_dataset(
                 detail="Unsupported dataset format"
             )
 
-
         print(
             f"Reading existing dataset from MinIO: {filename}"
         )
 
-
-        # ----------------------------------------------------
-        # Check object exists
-        # ----------------------------------------------------
+        # ====================================================
+        # CHECK OBJECT EXISTS
+        # ====================================================
 
         try:
 
@@ -429,7 +424,6 @@ def analyze_dataset(
                 )
             )
 
-
         if stat.size == 0:
 
             raise HTTPException(
@@ -437,19 +431,16 @@ def analyze_dataset(
                 detail="Dataset is empty"
             )
 
-
-        # ----------------------------------------------------
-        # Get object
-        # ----------------------------------------------------
+        # ====================================================
+        # GET OBJECT FROM MINIO
+        # ====================================================
 
         response = client.get_object(
             bucket_name,
             filename
         )
 
-
         data = response.read()
-
 
         if not data:
 
@@ -458,16 +449,20 @@ def analyze_dataset(
                 detail="Dataset is empty"
             )
 
-
-        # ----------------------------------------------------
-        # Read dataset
-        # ----------------------------------------------------
+        # ====================================================
+        # READ DATASET
+        #
+        # This uses the same file_reader.py used by upload.
+        # ====================================================
 
         df = read_uploaded_file(
             data,
             filename
         )
 
+        # ====================================================
+        # VALIDATE DATASET
+        # ====================================================
 
         if df.empty:
 
@@ -476,6 +471,12 @@ def analyze_dataset(
                 detail="Dataset contains no data"
             )
 
+        if len(df.columns) == 0:
+
+            raise HTTPException(
+                status_code=400,
+                detail="Dataset contains no columns"
+            )
 
         print(
             f"Existing dataset loaded: "
@@ -483,21 +484,23 @@ def analyze_dataset(
             f"{len(df.columns)} columns"
         )
 
+        print(
+            "Columns:",
+            df.columns.tolist()
+        )
 
-        # ----------------------------------------------------
-        # Analyze
-        # ----------------------------------------------------
+        # ====================================================
+        # ANALYZE
+        # ====================================================
 
         return create_analysis_response(
             df,
             filename
         )
 
-
     except HTTPException:
 
         raise
-
 
     except Exception as e:
 
@@ -506,12 +509,10 @@ def analyze_dataset(
             repr(e)
         )
 
-
         raise HTTPException(
             status_code=500,
             detail=str(e)
         )
-
 
     finally:
 
@@ -525,11 +526,10 @@ def analyze_dataset(
 # ============================================================
 # BACKWARD COMPATIBILITY
 #
-# Your old frontend was using:
+# Old frontend:
 #
 # /csv-analysis/Details.csv
 #
-# Keep this endpoint so old code doesn't immediately break.
 # ============================================================
 
 @app.get(
@@ -545,180 +545,6 @@ def analyze_csv(
 
 
 # ============================================================
-# READ DATASET
-# ============================================================
-
-def read_uploaded_file(
-    data: bytes,
-    filename: str
-):
-
-    filename_lower = filename.lower()
-
-
-    # ========================================================
-    # EXCEL
-    # ========================================================
-
-    if filename_lower.endswith(
-        (".xlsx", ".xls")
-    ):
-
-        file_object = io.BytesIO(data)
-
-        try:
-
-            df = pd.read_excel(
-                file_object
-            )
-
-        except Exception as e:
-
-            raise ValueError(
-                f"Unable to read Excel file: {e}"
-            )
-
-
-    # ========================================================
-    # CSV
-    # ========================================================
-
-    elif filename_lower.endswith(".csv"):
-
-        df = None
-
-        encodings = [
-            "utf-8",
-            "utf-8-sig",
-            "latin1",
-            "cp1252"
-        ]
-
-        last_error = None
-
-
-        for encoding in encodings:
-
-            try:
-
-                file_object = io.BytesIO(
-                    data
-                )
-
-
-                df = pd.read_csv(
-                    file_object,
-                    encoding=encoding,
-                    low_memory=False
-                )
-
-
-                print(
-                    f"CSV encoding detected: {encoding}"
-                )
-
-
-                break
-
-
-            except Exception as e:
-
-                last_error = e
-
-
-        if df is None:
-
-            raise ValueError(
-                "Unable to read CSV file: "
-                f"{last_error}"
-            )
-
-
-    else:
-
-        raise ValueError(
-            "Unsupported file format"
-        )
-
-
-    # ========================================================
-    # REMOVE COMPLETELY EMPTY ROWS
-    # ========================================================
-
-    df = df.dropna(
-        axis=0,
-        how="all"
-    )
-
-
-    # ========================================================
-    # REMOVE COMPLETELY EMPTY COLUMNS
-    # ========================================================
-
-    df = df.dropna(
-        axis=1,
-        how="all"
-    )
-
-
-    # ========================================================
-    # CLEAN COLUMN NAMES
-    # ========================================================
-
-    new_columns = []
-
-    used_names = set()
-
-
-    for index, column in enumerate(
-        df.columns
-    ):
-
-        name = str(column).strip()
-
-
-        if not name:
-
-            name = (
-                f"Column_{index + 1}"
-            )
-
-
-        original_name = name
-
-        counter = 2
-
-
-        while name in used_names:
-
-            name = (
-                f"{original_name}_{counter}"
-            )
-
-            counter += 1
-
-
-        used_names.add(name)
-
-        new_columns.append(name)
-
-
-    df.columns = new_columns
-
-
-    # ========================================================
-    # RESET INDEX
-    # ========================================================
-
-    df = df.reset_index(
-        drop=True
-    )
-
-
-    return df
-
-
-# ============================================================
 # DETECT COLUMN TYPE
 # ============================================================
 
@@ -728,11 +554,13 @@ def detect_column_type(
 
     non_null = series.dropna()
 
+    # --------------------------------------------------------
+    # Empty column
+    # --------------------------------------------------------
 
     if len(non_null) == 0:
 
         return "string"
-
 
     # --------------------------------------------------------
     # Boolean
@@ -744,7 +572,6 @@ def detect_column_type(
 
         return "boolean"
 
-
     # --------------------------------------------------------
     # Integer
     # --------------------------------------------------------
@@ -754,7 +581,6 @@ def detect_column_type(
     ):
 
         return "integer"
-
 
     # --------------------------------------------------------
     # Float
@@ -766,7 +592,6 @@ def detect_column_type(
 
         return "number"
 
-
     # --------------------------------------------------------
     # Numeric
     # --------------------------------------------------------
@@ -776,7 +601,6 @@ def detect_column_type(
     ):
 
         return "number"
-
 
     # --------------------------------------------------------
     # Native datetime
@@ -796,21 +620,17 @@ def detect_column_type(
                 non_null_dates.dt.normalize()
             )
 
-
             if (
                 normalized == non_null_dates
             ).all():
 
                 return "date"
 
-
         except Exception:
 
             pass
 
-
         return "datetime"
-
 
     # ========================================================
     # STRING DETECTION
@@ -822,11 +642,9 @@ def detect_column_type(
         .str.strip()
     )
 
-
     if len(values) == 0:
 
         return "string"
-
 
     # --------------------------------------------------------
     # Boolean-like strings
@@ -842,18 +660,16 @@ def detect_column_type(
 
         "y",
         "n"
-    }
 
+    }
 
     lower_values = (
         values.str.lower()
     )
 
-
     unique_values = set(
         lower_values.unique()
     )
-
 
     if (
         len(unique_values) > 0
@@ -864,7 +680,6 @@ def detect_column_type(
 
         return "boolean"
 
-
     # --------------------------------------------------------
     # Numeric strings
     # --------------------------------------------------------
@@ -874,11 +689,9 @@ def detect_column_type(
         errors="coerce"
     )
 
-
     numeric_ratio = (
         numeric_values.notna().mean()
     )
-
 
     if numeric_ratio >= 0.95:
 
@@ -888,21 +701,17 @@ def detect_column_type(
                 numeric_values.dropna()
             )
 
-
             if (
                 numeric_non_null % 1 == 0
             ).all():
 
                 return "integer"
 
-
         except Exception:
 
             pass
 
-
         return "number"
-
 
     # --------------------------------------------------------
     # Date detection
@@ -915,7 +724,6 @@ def detect_column_type(
         ).mean()
     )
 
-
     if date_like_ratio >= 0.50:
 
         try:
@@ -926,11 +734,9 @@ def detect_column_type(
                 format="mixed"
             )
 
-
             date_ratio = (
                 date_values.notna().mean()
             )
-
 
             if date_ratio >= 0.95:
 
@@ -945,24 +751,19 @@ def detect_column_type(
                         ).time()
                     ).any()
 
-
                     if has_time:
 
                         return "datetime"
 
-
                     return "date"
-
 
                 except Exception:
 
                     return "date"
 
-
         except Exception:
 
             pass
-
 
     return "string"
 
@@ -977,7 +778,6 @@ def get_column_information(
 
     columns = []
 
-
     for column in df.columns:
 
         series = df[column]
@@ -987,7 +787,6 @@ def get_column_information(
                 series
             )
         )
-
 
         columns.append({
 
@@ -1015,7 +814,6 @@ def get_column_information(
 
         })
 
-
     return columns
 
 
@@ -1029,7 +827,6 @@ def json_safe_value(value):
 
         return None
 
-
     try:
 
         if pd.isna(value):
@@ -1040,6 +837,9 @@ def json_safe_value(value):
 
         pass
 
+    # --------------------------------------------------------
+    # Pandas Timestamp
+    # --------------------------------------------------------
 
     if isinstance(
         value,
@@ -1048,6 +848,9 @@ def json_safe_value(value):
 
         return value.isoformat()
 
+    # --------------------------------------------------------
+    # Other datetime-like values
+    # --------------------------------------------------------
 
     if hasattr(
         value,
@@ -1062,6 +865,9 @@ def json_safe_value(value):
 
             pass
 
+    # --------------------------------------------------------
+    # Python float
+    # --------------------------------------------------------
 
     if isinstance(
         value,
@@ -1072,6 +878,9 @@ def json_safe_value(value):
 
             return None
 
+    # --------------------------------------------------------
+    # Numpy scalar
+    # --------------------------------------------------------
 
     if hasattr(
         value,
@@ -1081,7 +890,6 @@ def json_safe_value(value):
         try:
 
             converted = value.item()
-
 
             if isinstance(
                 converted,
@@ -1094,14 +902,15 @@ def json_safe_value(value):
 
                     return None
 
-
             return converted
-
 
         except Exception:
 
             pass
 
+    # --------------------------------------------------------
+    # Standard types
+    # --------------------------------------------------------
 
     if isinstance(
         value,
@@ -1109,7 +918,6 @@ def json_safe_value(value):
     ):
 
         return value
-
 
     if isinstance(
         value,
@@ -1121,7 +929,6 @@ def json_safe_value(value):
     ):
 
         return value
-
 
     return str(value)
 
@@ -1136,13 +943,11 @@ def dataframe_to_records(
 
     records = []
 
-
     for row in df.to_dict(
         orient="records"
     ):
 
         clean_row = {}
-
 
         for key, value in row.items():
 
@@ -1150,11 +955,9 @@ def dataframe_to_records(
                 json_safe_value(value)
             )
 
-
         records.append(
             clean_row
         )
-
 
     return records
 
@@ -1169,25 +972,20 @@ def create_numeric_summary(
 
     result = []
 
-
     for column in df.columns:
 
         series = df[column]
-
 
         numeric = pd.to_numeric(
             series,
             errors="coerce"
         )
 
-
         valid = numeric.dropna()
-
 
         if len(valid) == 0:
 
             continue
-
 
         result.append({
 
@@ -1215,7 +1013,6 @@ def create_numeric_summary(
 
         })
 
-
     return result
 
 
@@ -1229,11 +1026,13 @@ def create_categorical_summary(
 
     result = []
 
-
     for column in df.columns:
 
         series = df[column]
 
+        # ----------------------------------------------------
+        # Skip numeric columns
+        # ----------------------------------------------------
 
         if pd.api.types.is_numeric_dtype(
             series
@@ -1241,24 +1040,23 @@ def create_categorical_summary(
 
             continue
 
-
         non_null = series.dropna()
-
 
         if len(non_null) == 0:
 
             continue
 
-
         unique_count = (
             non_null.nunique()
         )
 
+        # ----------------------------------------------------
+        # Avoid huge categorical datasets
+        # ----------------------------------------------------
 
         if unique_count > 100:
 
             continue
-
 
         counts = (
             non_null
@@ -1266,9 +1064,7 @@ def create_categorical_summary(
             .value_counts()
         )
 
-
         values = []
-
 
         for value, count in counts.items():
 
@@ -1279,7 +1075,6 @@ def create_categorical_summary(
                 "count": int(count)
 
             })
-
 
         result.append({
 
@@ -1293,7 +1088,6 @@ def create_categorical_summary(
 
         })
 
-
     return result
 
 
@@ -1306,22 +1100,35 @@ def create_analysis_response(
     filename: str
 ):
 
+    # ========================================================
+    # COLUMN INFORMATION
+    # ========================================================
+
     columns = (
         get_column_information(
             df
         )
     )
 
+    # ========================================================
+    # FULL DATA
+    # ========================================================
 
     data = dataframe_to_records(
         df
     )
 
+    # ========================================================
+    # PREVIEW
+    # ========================================================
 
     preview = dataframe_to_records(
         df.head(10)
     )
 
+    # ========================================================
+    # NUMERIC SUMMARY
+    # ========================================================
 
     numeric_summary = (
         create_numeric_summary(
@@ -1329,6 +1136,9 @@ def create_analysis_response(
         )
     )
 
+    # ========================================================
+    # CATEGORICAL SUMMARY
+    # ========================================================
 
     categorical_summary = (
         create_categorical_summary(
@@ -1336,6 +1146,9 @@ def create_analysis_response(
         )
     )
 
+    # ========================================================
+    # RESPONSE
+    # ========================================================
 
     return {
 

@@ -10,6 +10,7 @@ import Sidebar from "../components/Layout/Sidebar/Sidebar.jsx";
 import Charts from "../components/Layout/Charts/Charts.jsx";
 import ComparisonChart from "../components/Layout/ComparisonChart/ComparisonChart.jsx";
 import Chatbot from "../components/Layout/Chatbot/Chatbot.jsx";
+import DatasetSelector from "../components/Layout/Header/DatasetSelector.jsx";
 
 import {
     applyAggregation
@@ -88,6 +89,7 @@ function Dashboard() {
         setCalculatedFields([]);
 
         setCharts([]);
+
     };
 
 
@@ -97,8 +99,31 @@ function Dashboard() {
 
     const handleDatasetLoaded = (analysis) => {
 
+        console.log(
+            "===================================="
+        );
+
+        console.log(
+            "DATASET LOADED"
+        );
+
+        console.log(
+            analysis
+        );
+
+        console.log(
+            "===================================="
+        );
+
+
         if (!analysis) {
+
+            console.warn(
+                "No dataset analysis received."
+            );
+
             return;
+
         }
 
 
@@ -111,6 +136,11 @@ function Dashboard() {
             setDatasetName(
                 analysis.filename
             );
+
+        }
+        else {
+
+            setDatasetName("");
 
         }
 
@@ -164,6 +194,26 @@ function Dashboard() {
         // --------------------------------------------------------
 
         resetCalculatedFields();
+
+    };
+
+
+    // ============================================================
+    // HANDLE DATASET ERROR / RESET
+    // ============================================================
+
+    const handleDatasetReset = () => {
+
+        setDatasetName("");
+
+        setColumns([]);
+
+        setDatasetData([]);
+
+        setSelectedColumns([]);
+
+        resetCalculatedFields();
+
     };
 
 
@@ -176,7 +226,9 @@ function Dashboard() {
     ) => {
 
         if (!fieldConfig) {
+
             return;
+
         }
 
 
@@ -187,6 +239,7 @@ function Dashboard() {
         ) {
 
             return;
+
         }
 
 
@@ -295,6 +348,7 @@ function Dashboard() {
             setCharts([]);
 
             return;
+
         }
 
 
@@ -326,7 +380,9 @@ function Dashboard() {
 
         }
 
-    }, [enhancedDatasetData]);
+    }, [
+        enhancedDatasetData
+    ]);
 
 
     // ============================================================
@@ -443,10 +499,6 @@ function Dashboard() {
                     columns
                 }
 
-                onDatasetLoaded={
-                    handleDatasetLoaded
-                }
-
             />
 
 
@@ -492,12 +544,32 @@ function Dashboard() {
             >
 
                 {/* ================================================= */}
+                {/* MINIO DATASET SELECTOR */}
+                {/* ================================================= */}
+
+                <DatasetSelector
+
+                    onDatasetLoaded={
+                        handleDatasetLoaded
+                    }
+
+                    onDatasetReset={
+                        handleDatasetReset
+                    }
+
+                />
+
+
+                {/* ================================================= */}
                 {/* TITLE */}
                 {/* ================================================= */}
 
                 <Typography
                     variant="h4"
                     fontWeight="bold"
+                    sx={{
+                        mt: 4
+                    }}
                 >
                     Analytics Dashboard
                 </Typography>
@@ -526,9 +598,10 @@ function Dashboard() {
                     }}
                 >
 
-                    {datasetName
-                        ? `Current dataset: ${datasetName}`
-                        : "Select a dataset or upload a file to begin"
+                    {
+                        datasetName
+                            ? `Current dataset: ${datasetName}`
+                            : "Select a dataset or upload a file to begin"
                     }
 
                 </Typography>
@@ -722,6 +795,7 @@ function Dashboard() {
         </Box>
 
     );
+
 }
 
 
