@@ -5,66 +5,108 @@ import {
     Grid,
     Paper,
     Typography,
-    Divider
+    Chip
 } from "@mui/material";
 
+import {
+    AutoGraphRounded,
+    BarChartRounded
+} from "@mui/icons-material";
 
-import ChartSelector from "./ChartSelector";
-import ChartRenderer from "./ChartRenderer";
-
+import ChartCard from "./ChartCard";
 
 
 function Charts({
-
     charts,
-
     setCharts,
-
     datasetData
-
 }) {
 
-
-
-    if(
+    if (
         !datasetData ||
-        datasetData.length===0
-    ){
+        datasetData.length === 0
+    ) {
 
         return (
 
             <Paper
-
+                elevation={0}
                 sx={{
+                    minHeight: 420,
 
-                    height:450,
+                    borderRadius: 4,
 
-                    display:"flex",
+                    border:
+                        "1px solid #E8ECF3",
 
-                    justifyContent:"center",
+                    background:
+                        "#FFFFFF",
 
-                    alignItems:"center",
+                    display: "flex",
 
-                    borderRadius:4,
+                    flexDirection: "column",
 
-                    background:"#fff"
+                    alignItems: "center",
 
+                    justifyContent: "center",
+
+                    textAlign: "center",
+
+                    p: 4
                 }}
-
             >
 
-                <Typography
+                <Box
+                    sx={{
+                        width: 70,
+                        height: 70,
 
-                    variant="h6"
+                        borderRadius: 3,
 
-                    color="text.secondary"
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
 
+                        background:
+                            "#EEF2FF",
+
+                        color:
+                            "#6366F1",
+
+                        mb: 2
+                    }}
                 >
 
-                    Upload a CSV dataset to generate your dashboard
+                    <AutoGraphRounded
+                        sx={{
+                            fontSize: 34
+                        }}
+                    />
 
+                </Box>
+
+
+                <Typography
+                    variant="h6"
+                    fontWeight={800}
+                    color="#0F172A"
+                >
+                    Your analytics workspace is empty
                 </Typography>
 
+
+                <Typography
+                    variant="body2"
+                    color="#64748B"
+                    sx={{
+                        mt: 1,
+                        maxWidth: 480
+                    }}
+                >
+                    Upload a CSV or Excel dataset to
+                    automatically generate charts and
+                    discover patterns in your data.
+                </Typography>
 
             </Paper>
 
@@ -73,280 +115,157 @@ function Charts({
     }
 
 
+    const updateChart = (
+        index,
+        key,
+        value
+    ) => {
 
+        const updatedCharts =
+            [...charts];
 
-
-    const updateChart=(index,key,value)=>{
-
-
-        const updatedCharts=[...charts];
-
-
-        updatedCharts[index]={
-
+        updatedCharts[index] = {
             ...updatedCharts[index],
-
-            [key]:value
-
+            [key]: value
         };
 
-
-        setCharts(updatedCharts);
-
+        setCharts(
+            updatedCharts
+        );
 
     };
-
-
-
-
 
 
     return (
 
         <Box>
 
+            {/* SECTION HEADER */}
 
-            <Grid
-
-                container
-
-                spacing={3}
-
+            <Box
                 sx={{
+                    display: "flex",
 
-                    alignItems:"stretch"
+                    alignItems: {
+                        xs: "flex-start",
+                        sm: "center"
+                    },
 
+                    justifyContent:
+                        "space-between",
+
+                    gap: 2,
+
+                    mb: 3,
+
+                    flexDirection: {
+                        xs: "column",
+                        sm: "row"
+                    }
                 }}
-
             >
 
+                <Box>
+
+                    <Box
+                        sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1
+                        }}
+                    >
+
+                        <AutoGraphRounded
+                            sx={{
+                                color: "#6366F1"
+                            }}
+                        />
+
+                        <Typography
+                            variant="h5"
+                            fontWeight={800}
+                            color="#0F172A"
+                        >
+                            Analytics
+                        </Typography>
+
+                    </Box>
+
+                    <Typography
+                        variant="body2"
+                        color="#64748B"
+                        sx={{
+                            mt: 0.5
+                        }}
+                    >
+                        Explore automatically generated
+                        insights from your dataset.
+                    </Typography>
+
+                </Box>
 
 
-                {
+                <Chip
+                    icon={
+                        <BarChartRounded
+                            sx={{
+                                fontSize: 17
+                            }}
+                        />
+                    }
+                    label={`${charts.length} visualizations`}
+                    sx={{
+                        background: "#EEF2FF",
+                        color: "#4F46E5",
+                        fontWeight: 700
+                    }}
+                />
 
-                    charts.map((chart,index)=>(
+            </Box>
 
 
+            {/* CHART GRID */}
+
+            <Grid
+                container
+                spacing={3}
+                alignItems="stretch"
+            >
+
+                {charts.map(
+                    (
+                        chart,
+                        index
+                    ) => (
 
                         <Grid
-
                             item
-
                             xs={12}
-
-                            sm={6}
-
-                            md={4}
-
-                            lg={4}
-
-                            xl={3}
-
+                            lg={6}
                             key={index}
-
                         >
 
-
-
-                            <Paper
-
-                                elevation={0}
-
-                                sx={{
-
-                                    height:580,
-
-                                    borderRadius:4,
-
-                                    border:"1px solid #E5E7EB",
-
-                                    background:"#fff",
-
-                                    overflow:"hidden",
-
-                                    display:"flex",
-
-                                    flexDirection:"column",
-
-                                    transition:"0.3s",
-
-                                    "&:hover":{
-
-                                        boxShadow:
-                                        "0 15px 35px rgba(0,0,0,.08)"
-
-                                    }
-
-                                }}
-
-                            >
-
-
-
-
-
-                                {/* Header */}
-
-                                <Box
-
-                                    sx={{
-
-                                        p:3,
-
-                                        height:90,
-
-                                        background:"#FAFAFA"
-
-                                    }}
-
-                                >
-
-
-                                    <Typography
-
-                                        variant="h6"
-
-                                        fontWeight="bold"
-
-                                    >
-
-                                        {
-                                            chart.title ||
-                                            `Chart ${index+1}`
-                                        }
-
-
-                                    </Typography>
-
-
-
-                                    <Typography
-
-                                        variant="body2"
-
-                                        color="text.secondary"
-
-                                    >
-
-                                        Customize chart type and axes
-
-                                    </Typography>
-
-
-                                </Box>
-
-
-
-
-
-
-                                <Divider />
-
-
-
-
-
-
-
-
-                                {/* Dropdown area */}
-
-
-                                <Box
-
-                                    sx={{
-
-                                        p:2,
-
-                                        height:100
-
-                                    }}
-
-                                >
-
-
-                                    <ChartSelector
-
-                                        chart={chart}
-
-                                        index={index}
-
-                                        updateChart={updateChart}
-
-                                        datasetData={datasetData}
-
-                                    />
-
-
-                                </Box>
-
-
-
-
-
-
-
-
-
-                                {/* Chart area */}
-
-
-                                <Box
-
-                                    sx={{
-
-                                        height:360,
-
-                                        px:2,
-
-                                        pb:2
-
-                                    }}
-
-                                >
-
-
-                                    <ChartRenderer
-
-                                        chart={chart}
-
-                                        data={datasetData}
-
-                                    />
-
-
-                                </Box>
-
-
-
-
-
-                            </Paper>
-
-
+                            <ChartCard
+                                chart={chart}
+                                index={index}
+                                updateChart={
+                                    updateChart
+                                }
+                                datasetData={
+                                    datasetData
+                                }
+                            />
 
                         </Grid>
 
-
-
-                    ))
-
-
-                }
-
-
+                    )
+                )}
 
             </Grid>
 
-
-
         </Box>
 
-
     );
-
 }
-
-
 
 export default Charts;

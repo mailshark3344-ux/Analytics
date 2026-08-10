@@ -1,4 +1,7 @@
-import React, { useCallback, useMemo } from "react";
+import React, {
+    useCallback,
+    useMemo
+} from "react";
 
 import {
     Box,
@@ -9,7 +12,10 @@ import {
     Typography
 } from "@mui/material";
 
-import { recommendCharts } from "../../../utils/chartRecommendation";
+import {
+    recommendCharts
+} from "../../../utils/chartRecommendation";
+
 
 function ChartSelector({
     chart,
@@ -17,151 +23,447 @@ function ChartSelector({
     updateChart,
     datasetData
 }) {
-    // compute safe columns/numericColumns before hooks so hooks are called
-    // in the same order on every render (avoids react-hooks/rules-of-hooks ESLint errors)
-    const columns = useMemo(() => {
-        return datasetData && datasetData.length > 0 ? Object.keys(datasetData[0]) : [];
-    }, [datasetData]);
 
-    const isNumericColumn = useCallback((columnName) => {
-        if (!datasetData || datasetData.length === 0) return false;
-        const values = datasetData
-            .slice(0, 20)
-            .map((row) => row[columnName]);
+    const columns = useMemo(
+        () => {
 
-        return values.every(
-            (value) =>
-                value !== "" &&
-                value !== null &&
-                !isNaN(Number(value))
-        );
-    }, [datasetData]);
-
-    const chartTypes = recommendCharts(
-        datasetData,
-        chart.x,
-        chart.y
-    );
-
-    const handleDragOver = useCallback((event) => {
-        event.preventDefault();
-    }, []);
-
-    const handleDrop = useCallback(
-        (axis) => (event) => {
-            event.preventDefault();
-            const columnName = event.dataTransfer.getData("text/plain");
-            if (!columnName || !columns.includes(columnName)) {
-                return;
+            if (
+                !datasetData ||
+                datasetData.length === 0
+            ) {
+                return [];
             }
 
-            const newX = axis === "x" ? columnName : chart.x;
-            const newY = axis === "y" ? columnName : chart.y;
+            return Object.keys(
+                datasetData[0]
+            );
 
-            // If dropping onto Y: allow non-numeric if recommendations support it
-            if (axis === "y" && !isNumericColumn(columnName)) {
-                const rec = recommendCharts(datasetData, newX, newY);
-                const allowedTypes = ["Grouped Bar Chart", "Heatmap", "Treemap"];
-                if (!allowedTypes.some((type) => rec.includes(type))) {
+        },
+        [datasetData]
+    );
+
+
+    const isNumericColumn =
+        useCallback(
+            (
+                columnName
+            ) => {
+
+                if (
+                    !datasetData ||
+                    datasetData.length === 0
+                ) {
+                    return false;
+                }
+
+                const values =
+                    datasetData
+                        .slice(0, 20)
+                        .map(
+                            row =>
+                                row[columnName]
+                        );
+
+                return values.every(
+                    value =>
+                        value !== "" &&
+                        value !== null &&
+                        !isNaN(
+                            Number(value)
+                        )
+                );
+
+            },
+            [datasetData]
+        );
+
+
+    const chartTypes =
+        recommendCharts(
+            datasetData,
+            chart.x,
+            chart.y
+        );
+
+
+    const handleDragOver =
+        useCallback(
+            event => {
+                event.preventDefault();
+            },
+            []
+        );
+
+
+    const handleDrop =
+        useCallback(
+            axis => event => {
+
+                event.preventDefault();
+
+                const columnName =
+                    event.dataTransfer.getData(
+                        "text/plain"
+                    );
+
+                if (
+                    !columnName ||
+                    !columns.includes(
+                        columnName
+                    )
+                ) {
                     return;
                 }
-            }
 
-            // update the axis value
-            updateChart(index, axis, columnName);
 
-            // compute recommendations for the new axis combination
-            const recommended = recommendCharts(datasetData, newX, newY);
+                const newX =
+                    axis === "x"
+                        ? columnName
+                        : chart.x;
 
-            // If we have recommendations, ensure the chart's type is one of them.
-            // If the current type is missing or empty, set to the first recommended type.
-            if (recommended.length > 0) {
-                const currentType = chart.type || "";
-                if (!currentType || !recommended.includes(currentType)) {
-                    updateChart(index, "type", recommended[0]);
+                const newY =
+                    axis === "y"
+                        ? columnName
+                        : chart.y;
+
+
+                if (
+                    axis === "y" &&
+                    !isNumericColumn(
+                        columnName
+                    )
+                ) {
+
+                    const rec =
+                        recommendCharts(
+                            datasetData,
+                            newX,
+                            newY
+                        );
+
+                    const allowedTypes = [
+                        "Grouped Bar Chart",
+                        "Heatmap",
+                        "Treemap"
+                    ];
+
+                    if (
+                        !allowedTypes.some(
+                            type =>
+                                rec.includes(
+                                    type
+                                )
+                        )
+                    ) {
+                        return;
+                    }
+
                 }
-            }
-        },
-        [chart.x, chart.y, chart.type, columns, datasetData, index, isNumericColumn, updateChart]
-    );
+
+
+                updateChart(
+                    index,
+                    axis,
+                    columnName
+                );
+
+
+                const recommended =
+                    recommendCharts(
+                        datasetData,
+                        newX,
+                        newY
+                    );
+
+
+                if (
+                    recommended.length > 0
+                ) {
+
+                    const currentType =
+                        chart.type || "";
+
+                    if (
+                        !currentType ||
+                        !recommended.includes(
+                            currentType
+                        )
+                    ) {
+
+                        updateChart(
+                            index,
+                            "type",
+                            recommended[0]
+                        );
+
+                    }
+
+                }
+
+            },
+            [
+                chart.x,
+                chart.y,
+                chart.type,
+                columns,
+                datasetData,
+                index,
+                isNumericColumn,
+                updateChart
+            ]
+        );
+
+
+    if (
+        !datasetData ||
+        datasetData.length === 0
+    ) {
+        return null;
+    }
+
 
     return (
-        // if no data available, render nothing
-        (datasetData && datasetData.length > 0) && (
+
         <Box
             sx={{
-                display: "flex",
-                gap: 2,
-                width: "100%",
-                flexWrap: "wrap"
+                display: "grid",
+
+                gridTemplateColumns: {
+                    xs: "1fr",
+                    md: "1fr 1fr 1fr"
+                },
+
+                gap: 1.5,
+
+                width: "100%"
             }}
         >
+
+            {/* CHART TYPE */}
+
             <FormControl
-                sx={{
-                    flex: 1,
-                    minWidth: 180
-                }}
+                size="small"
+                fullWidth
             >
-                <InputLabel>Chart Type</InputLabel>
+
+                <InputLabel>
+                    Visualization
+                </InputLabel>
+
                 <Select
-                    value={chart.type || ""}
-                    label="Chart Type"
-                    onChange={(e) => updateChart(index, "type", e.target.value)}
-                    disabled={!chart.x || !chart.y}
+                    value={
+                        chart.type || ""
+                    }
+
+                    label="Visualization"
+
+                    onChange={
+                        event =>
+                            updateChart(
+                                index,
+                                "type",
+                                event.target.value
+                            )
+                    }
+
+                    disabled={
+                        !chart.x ||
+                        !chart.y
+                    }
+
+                    sx={{
+                        background:
+                            "#FFFFFF",
+
+                        borderRadius: 2
+                    }}
                 >
-                    {chartTypes.map((type) => (
-                        <MenuItem key={type} value={type}>
-                            {type}
-                        </MenuItem>
-                    ))}
+
+                    {chartTypes.map(
+                        type => (
+
+                            <MenuItem
+                                key={type}
+                                value={type}
+                            >
+                                {type}
+                            </MenuItem>
+
+                        )
+                    )}
+
                 </Select>
+
             </FormControl>
 
-            <Box sx={{ flex: 1, minWidth: 180 }}>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
+
+            {/* X AXIS */}
+
+            <Box>
+
+                <Typography
+                    fontSize={10}
+                    fontWeight={800}
+                    color="#64748B"
+                    sx={{
+                        mb: 0.5,
+                        textTransform:
+                            "uppercase",
+                        letterSpacing: .7
+                    }}
+                >
                     X Axis
                 </Typography>
+
                 <Box
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop("x")}
+                    onDragOver={
+                        handleDragOver
+                    }
+
+                    onDrop={
+                        handleDrop("x")
+                    }
+
                     sx={{
-                        minHeight: 56,
-                        p: 2,
-                        border: "1px dashed #9CA3AF",
+                        height: 40,
+
+                        px: 1.5,
+
+                        border:
+                            chart.x
+                                ? "1px solid #A5B4FC"
+                                : "1px dashed #CBD5E1",
+
                         borderRadius: 2,
-                        bgcolor: chart.x ? "#ECFDF5" : "#F8FAFC",
+
+                        background:
+                            chart.x
+                                ? "#EEF2FF"
+                                : "#F8FAFC",
+
                         display: "flex",
+
                         alignItems: "center",
-                        justifyContent: "center"
+
+                        transition:
+                            ".2s",
+
+                        "&:hover": {
+                            borderColor:
+                                "#6366F1"
+                        }
                     }}
                 >
-                    {chart.x || "Drag a column here"}
+
+                    <Typography
+                        fontSize={12}
+                        fontWeight={
+                            chart.x
+                                ? 700
+                                : 500
+                        }
+
+                        color={
+                            chart.x
+                                ? "#4338CA"
+                                : "#94A3B8"
+                        }
+
+                        noWrap
+                    >
+                        {chart.x ||
+                            "Drop column here"}
+                    </Typography>
+
                 </Box>
+
             </Box>
 
-            <Box sx={{ flex: 1, minWidth: 180 }}>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                    Y Axis
-                </Typography>
-                <Box
-                    onDragOver={handleDragOver}
-                    onDrop={handleDrop("y")}
+
+            {/* Y AXIS */}
+
+            <Box>
+
+                <Typography
+                    fontSize={10}
+                    fontWeight={800}
+                    color="#64748B"
                     sx={{
-                        minHeight: 56,
-                        p: 2,
-                        border: "1px dashed #9CA3AF",
-                        borderRadius: 2,
-                        bgcolor: chart.y ? "#ECFDF5" : "#F8FAFC",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center"
+                        mb: 0.5,
+                        textTransform:
+                            "uppercase",
+                        letterSpacing: .7
                     }}
                 >
-                            {chart.y || "Drag a column here"}
+                    Y Axis
+                </Typography>
+
+                <Box
+                    onDragOver={
+                        handleDragOver
+                    }
+
+                    onDrop={
+                        handleDrop("y")
+                    }
+
+                    sx={{
+                        height: 40,
+
+                        px: 1.5,
+
+                        border:
+                            chart.y
+                                ? "1px solid #A5B4FC"
+                                : "1px dashed #CBD5E1",
+
+                        borderRadius: 2,
+
+                        background:
+                            chart.y
+                                ? "#EEF2FF"
+                                : "#F8FAFC",
+
+                        display: "flex",
+
+                        alignItems: "center",
+
+                        transition:
+                            ".2s",
+
+                        "&:hover": {
+                            borderColor:
+                                "#6366F1"
+                        }
+                    }}
+                >
+
+                    <Typography
+                        fontSize={12}
+                        fontWeight={
+                            chart.y
+                                ? 700
+                                : 500
+                        }
+
+                        color={
+                            chart.y
+                                ? "#4338CA"
+                                : "#94A3B8"
+                        }
+
+                        noWrap
+                    >
+                        {chart.y ||
+                            "Drop column here"}
+                    </Typography>
+
                 </Box>
+
             </Box>
+
         </Box>
-        )
+
     );
 }
 

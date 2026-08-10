@@ -3,181 +3,238 @@ import React from "react";
 import {
     Paper,
     Typography,
-    Box
+    Box,
+    Chip
 } from "@mui/material";
+
+import {
+    DragIndicatorRounded,
+    TuneRounded
+} from "@mui/icons-material";
 
 import ChartSelector from "./ChartSelector";
 import ChartRenderer from "./ChartRenderer";
 
 
-
 function ChartCard({
-
     chart,
     index,
     updateChart,
     datasetData
-
 }) {
-
-
 
     return (
 
         <Paper
-
             elevation={0}
-
             sx={{
-
-                height: 520,
-
-                p: 3,
+                height: 560,
 
                 borderRadius: 4,
 
-                background: "#ffffff",
+                background: "#FFFFFF",
 
-                border: "1px solid #ECECEC",
+                border:
+                    "1px solid #E8ECF3",
+
+                overflow: "hidden",
 
                 display: "flex",
 
                 flexDirection: "column",
 
-                overflow: "hidden",
-
-                transition: "0.3s",
+                transition:
+                    "all .25s ease",
 
                 "&:hover": {
+                    borderColor:
+                        "#C7D2FE",
 
                     boxShadow:
-                    "0px 12px 30px rgba(0,0,0,0.08)"
-
+                        "0 16px 40px rgba(15,23,42,.08)"
                 }
-
             }}
-
         >
 
-
-
-            {/* Chart Title */}
-
-            <Typography
-
-                variant="h6"
-
-                fontWeight="bold"
-
-                sx={{
-
-                    mb: 0.5
-
-                }}
-
-            >
-
-                {chart.title}
-
-            </Typography>
-
-
-
-
-            <Typography
-
-                variant="body2"
-
-                color="text.secondary"
-
-                sx={{
-
-                    mb: 2
-
-                }}
-
-            >
-
-                Customize chart type and axes
-
-            </Typography>
-
-
-
-
-
-
-            {/* Dropdown Section */}
+            {/* HEADER */}
 
             <Box
-
                 sx={{
+                    px: 2.5,
+                    py: 2,
 
-                    flexShrink:0
+                    display: "flex",
 
+                    alignItems: "center",
+
+                    justifyContent:
+                        "space-between",
+
+                    borderBottom:
+                        "1px solid #EEF2F7",
+
+                    background:
+                        "linear-gradient(180deg,#FFFFFF,#FAFBFF)"
                 }}
+            >
 
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.2,
+                        minWidth: 0
+                    }}
+                >
+
+                    <Box
+                        sx={{
+                            width: 34,
+                            height: 34,
+
+                            borderRadius: 2,
+
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+
+                            background:
+                                "#EEF2FF",
+
+                            color:
+                                "#6366F1"
+                        }}
+                    >
+
+                        <DragIndicatorRounded
+                            fontSize="small"
+                        />
+
+                    </Box>
+
+
+                    <Box
+                        sx={{
+                            minWidth: 0
+                        }}
+                    >
+
+                        <Typography
+                            fontWeight={800}
+                            fontSize={15}
+                            noWrap
+                            color="#0F172A"
+                        >
+                            {chart.title ||
+                                `Visualization ${index + 1}`}
+                        </Typography>
+
+                        <Typography
+                            fontSize={11}
+                            color="#94A3B8"
+                        >
+                            Interactive visualization
+                        </Typography>
+
+                    </Box>
+
+                </Box>
+
+
+                <Chip
+                    icon={
+                        <TuneRounded
+                            sx={{
+                                fontSize:
+                                    "14px !important"
+                            }}
+                        />
+                    }
+                    label={
+                        chart.type ||
+                        "Chart"
+                    }
+                    size="small"
+                    sx={{
+                        display: {
+                            xs: "none",
+                            sm: "flex"
+                        },
+
+                        background:
+                            "#F8FAFC",
+
+                        border:
+                            "1px solid #E2E8F0",
+
+                        color:
+                            "#475569",
+
+                        fontWeight: 600,
+
+                        fontSize: 10
+                    }}
+                />
+
+            </Box>
+
+
+            {/* CONTROLS */}
+
+            <Box
+                sx={{
+                    px: 2.5,
+                    py: 2,
+
+                    background:
+                        "#FAFBFF",
+
+                    borderBottom:
+                        "1px solid #EEF2F7"
+                }}
             >
 
                 <ChartSelector
-
                     chart={chart}
-
                     index={index}
-
                     updateChart={updateChart}
-
                     datasetData={datasetData}
-
                 />
 
             </Box>
 
 
-
-
-
-
-            {/* Chart Area */}
+            {/* CHART */}
 
             <Box
-
                 sx={{
+                    flexGrow: 1,
 
-                    height:330,
+                    minHeight: 0,
 
-                    mt:2,
-
-                    flexShrink:0,
-
-                    width:"100%"
-
+                    p: 2.5
                 }}
-
             >
 
+                <Box
+                    sx={{
+                        width: "100%",
+                        height: "100%"
+                    }}
+                >
 
-                <ChartRenderer
+                    <ChartRenderer
+                        chart={chart}
+                        data={datasetData}
+                    />
 
-                    chart={chart}
-
-                    data={datasetData}
-
-                />
-
+                </Box>
 
             </Box>
-
-
 
         </Paper>
 
-
     );
-
-
 }
-
-
 
 export default ChartCard;

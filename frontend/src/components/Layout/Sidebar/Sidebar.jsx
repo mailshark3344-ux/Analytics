@@ -2,16 +2,24 @@ import React from "react";
 
 import {
     Drawer,
-    List,
-    ListItem,
-    ListItemText,
     Typography,
     Divider,
     Box,
     Chip,
     Button,
-    CircularProgress
+    CircularProgress,
+    List,
+    ListItemButton
 } from "@mui/material";
+
+import {
+    StorageRounded,
+    TableChartRounded,
+    CheckCircleRounded,
+    DragIndicatorRounded,
+    FunctionsRounded,
+    CloudRounded
+} from "@mui/icons-material";
 
 function Sidebar({
     columns = [],
@@ -21,10 +29,6 @@ function Sidebar({
     datasetsLoading = false,
     onDatasetSelect = null
 }) {
-
-    // ============================================================
-    // DRAG COLUMN
-    // ============================================================
 
     const handleDragStart = (
         event,
@@ -38,12 +42,9 @@ function Sidebar({
 
         event.dataTransfer.effectAllowed =
             "copy";
+
     };
 
-
-    // ============================================================
-    // NORMALIZE COLUMN INFORMATION
-    // ============================================================
 
     const getColumnInfo = (
         column,
@@ -56,7 +57,6 @@ function Sidebar({
         ) {
 
             return {
-
                 name:
                     column.name ??
                     `Column ${index + 1}`,
@@ -64,42 +64,21 @@ function Sidebar({
                 type:
                     column.type ??
                     "string"
-
             };
 
         }
-
-
-        if (
-            typeof column === "string"
-        ) {
-
-            return {
-
-                name: column,
-
-                type: "string"
-
-            };
-
-        }
-
 
         return {
-
             name:
-                `Column ${index + 1}`,
+                typeof column === "string"
+                    ? column
+                    : `Column ${index + 1}`,
 
             type: "string"
-
         };
 
     };
 
-
-    // ============================================================
-    // FORMAT TYPE
-    // ============================================================
 
     const getTypeColor = (
         type
@@ -111,234 +90,284 @@ function Sidebar({
 
             case "integer":
             case "number":
-                return "primary";
+                return "#60A5FA";
 
             case "date":
             case "datetime":
-                return "secondary";
+                return "#C084FC";
 
             case "boolean":
-                return "success";
+                return "#34D399";
 
             default:
-                return "default";
+                return "#94A3B8";
 
         }
 
     };
 
-
-    // ============================================================
-    // FORMAT FILE SIZE
-    // ============================================================
-
-    const formatFileSize = (
-        bytes
-    ) => {
-
-        if (
-            !bytes ||
-            bytes <= 0
-        ) {
-
-            return "0 KB";
-
-        }
-
-
-        if (
-            bytes < 1024
-        ) {
-
-            return `${bytes} B`;
-
-        }
-
-
-        if (
-            bytes < 1024 * 1024
-        ) {
-
-            return `${(
-                bytes / 1024
-            ).toFixed(1)} KB`;
-
-        }
-
-
-        return `${(
-            bytes /
-            (1024 * 1024)
-        ).toFixed(1)} MB`;
-
-    };
-
-
-    // ============================================================
-    // SELECT DATASET
-    // ============================================================
-
-    const handleDatasetSelect = (
-        filename
-    ) => {
-
-        if (
-            !filename ||
-            !onDatasetSelect
-        ) {
-
-            return;
-
-        }
-
-
-        onDatasetSelect(
-            filename
-        );
-
-    };
-
-
-    // ============================================================
-    // RENDER
-    // ============================================================
 
     return (
 
         <Drawer
-
             variant="permanent"
-
             sx={{
 
-                width: 260,
+                width: 280,
 
                 flexShrink: 0,
 
                 "& .MuiDrawer-paper": {
 
-                    width: 260,
+                    width: 280,
 
                     boxSizing: "border-box",
 
-                    marginTop: "64px",
+                    top: 72,
 
                     height:
-                        "calc(100vh - 64px)",
+                        "calc(100vh - 72px)",
 
-                    overflowY: "auto",
+                    borderRight:
+                        "1px solid #1E293B",
 
                     background:
-                        "#f8fafc"
+                        "#0B1220",
 
+                    color: "#E2E8F0",
+
+                    overflowX: "hidden"
                 }
 
             }}
-
         >
 
             <Box
                 sx={{
-                    height: "100%",
-                    overflowY: "auto"
+                    p: 2.5
                 }}
             >
 
-                {/* ================================================= */}
-                {/* DATASET HEADER */}
-                {/* ================================================= */}
+                {/* WORKSPACE */}
 
-                <Typography
-                    variant="h6"
+                <Box
                     sx={{
-                        padding: 2,
-                        fontWeight: "bold"
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 1.5,
+                        mb: 3
                     }}
                 >
-                    📊 Dataset
+
+                    <Box
+                        sx={{
+                            width: 38,
+                            height: 38,
+
+                            borderRadius: 2,
+
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+
+                            background:
+                                "linear-gradient(135deg,#312E81,#7C3AED)",
+
+                            color: "#fff"
+                        }}
+                    >
+                        <StorageRounded />
+                    </Box>
+
+                    <Box>
+
+                        <Typography
+                            sx={{
+                                fontSize: 12,
+                                color: "#64748B"
+                            }}
+                        >
+                            WORKSPACE
+                        </Typography>
+
+                        <Typography
+                            sx={{
+                                fontWeight: 700,
+                                fontSize: 14
+                            }}
+                        >
+                            Data Explorer
+                        </Typography>
+
+                    </Box>
+
+                </Box>
+
+
+                {/* CURRENT DATASET */}
+
+                <Box
+                    sx={{
+                        p: 2,
+
+                        mb: 2.5,
+
+                        borderRadius: 3,
+
+                        background:
+                            "linear-gradient(145deg,#111C31,#0F172A)",
+
+                        border:
+                            "1px solid #1E293B"
+                    }}
+                >
+
+                    <Box
+                        sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            mb: 1
+                        }}
+                    >
+
+                        <CloudRounded
+                            sx={{
+                                fontSize: 18,
+                                color: "#818CF8"
+                            }}
+                        />
+
+                        <Typography
+                            sx={{
+                                fontSize: 11,
+                                color: "#64748B",
+                                fontWeight: 700
+                            }}
+                        >
+                            CURRENT DATASET
+                        </Typography>
+
+                    </Box>
+
+                    <Typography
+                        sx={{
+                            fontSize: 14,
+                            fontWeight: 700,
+                            wordBreak: "break-word",
+                            mb: 1.5
+                        }}
+                    >
+                        {datasetName ||
+                            "No dataset selected"}
+                    </Typography>
+
+                    <Chip
+                        size="small"
+                        icon={
+                            <CheckCircleRounded
+                                sx={{
+                                    fontSize: 14
+                                }}
+                            />
+                        }
+                        label={
+                            columns.length > 0
+                                ? "Ready"
+                                : "Waiting"
+                        }
+                        sx={{
+                            background:
+                                columns.length > 0
+                                    ? "rgba(16,185,129,.12)"
+                                    : "rgba(148,163,184,.1)",
+
+                            color:
+                                columns.length > 0
+                                    ? "#34D399"
+                                    : "#94A3B8",
+
+                            border:
+                                "1px solid rgba(255,255,255,.06)",
+
+                            fontWeight: 700
+                        }}
+                    />
+
+                </Box>
+
+
+                {/* DATASETS */}
+
+                <Typography
+                    sx={{
+                        fontSize: 11,
+                        color: "#64748B",
+                        fontWeight: 800,
+                        letterSpacing: 1,
+                        mb: 1
+                    }}
+                >
+                    DATASETS
                 </Typography>
 
 
-                <Divider />
+                {datasetsLoading ? (
 
+                    <Box
+                        sx={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            p: 1
+                        }}
+                    >
 
-                <List>
-
-                    {/* ================================================= */}
-                    {/* DATASETS AVAILABLE IN MINIO */}
-                    {/* ================================================= */}
-
-                    <ListItem>
-
-                        <ListItemText
-
-                            primary="☁️ MinIO Datasets"
-
-                            secondary={
-                                datasets.length > 0
-                                    ? `${datasets.length} dataset${
-                                        datasets.length === 1
-                                            ? ""
-                                            : "s"
-                                    } available`
-                                    : "No datasets found"
-                            }
-
+                        <CircularProgress
+                            size={16}
+                            sx={{
+                                color: "#818CF8"
+                            }}
                         />
 
-                    </ListItem>
+                        <Typography
+                            fontSize={12}
+                            color="#64748B"
+                        >
+                            Loading...
+                        </Typography>
 
+                    </Box>
 
-                    {/* ================================================= */}
-                    {/* DATASET LIST */}
-                    {/* ================================================= */}
+                ) : datasets.length === 0 ? (
 
-                    {datasetsLoading ? (
+                    <Box
+                        sx={{
+                            p: 1.5,
+                            mb: 2
+                        }}
+                    >
 
-                        <ListItem>
+                        <Typography
+                            fontSize={12}
+                            color="#64748B"
+                        >
+                            No datasets available.
+                        </Typography>
 
-                            <Box
-                                sx={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 1
-                                }}
-                            >
+                    </Box>
 
-                                <CircularProgress
-                                    size={18}
-                                />
+                ) : (
 
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                >
-                                    Loading datasets...
-                                </Typography>
+                    <Box
+                        sx={{
+                            maxHeight: 160,
+                            overflowY: "auto",
+                            mb: 2
+                        }}
+                    >
 
-                            </Box>
-
-                        </ListItem>
-
-                    ) : datasets.length === 0 ? (
-
-                        <ListItem>
-
-                            <ListItemText
-
-                                primary="No datasets available"
-
-                                secondary={
-                                    "Upload a CSV or Excel file to MinIO."
-                                }
-
-                            />
-
-                        </ListItem>
-
-                    ) : (
-
-                        datasets.map(
+                        {datasets.map(
                             (
                                 dataset,
                                 index
@@ -349,285 +378,154 @@ function Sidebar({
                                         ? dataset
                                         : dataset.name;
 
-                                const size =
-                                    typeof dataset === "object"
-                                        ? dataset.size
-                                        : 0;
-
-                                const isSelected =
-                                    filename === datasetName;
-
+                                const selected =
+                                    filename ===
+                                    datasetName;
 
                                 return (
 
-                                    <ListItem
+                                    <Button
                                         key={
                                             `${filename}-${index}`
                                         }
 
-                                        disablePadding
+                                        fullWidth
+
+                                        onClick={() =>
+                                            onDatasetSelect &&
+                                            onDatasetSelect(
+                                                filename
+                                            )
+                                        }
 
                                         sx={{
-                                            px: 1
+                                            justifyContent:
+                                                "flex-start",
+
+                                            textTransform:
+                                                "none",
+
+                                            color:
+                                                selected
+                                                    ? "#fff"
+                                                    : "#94A3B8",
+
+                                            background:
+                                                selected
+                                                    ? "rgba(99,102,241,.18)"
+                                                    : "transparent",
+
+                                            borderRadius: 2,
+
+                                            mb: 0.5,
+
+                                            "&:hover": {
+                                                background:
+                                                    "rgba(99,102,241,.12)"
+                                            }
                                         }}
                                     >
 
-                                        <Button
-
-                                            fullWidth
-
-                                            variant={
-                                                isSelected
-                                                    ? "contained"
-                                                    : "text"
-                                            }
-
-                                            onClick={() =>
-                                                handleDatasetSelect(
-                                                    filename
-                                                )
-                                            }
-
-                                            sx={{
-
-                                                justifyContent:
-                                                    "flex-start",
-
-                                                textTransform:
-                                                    "none",
-
-                                                textAlign:
-                                                    "left",
-
-                                                borderRadius:
-                                                    2,
-
-                                                px: 1.5,
-
-                                                py: 1,
-
-                                                color:
-                                                    isSelected
-                                                        ? "#fff"
-                                                        : "#334155",
-
-                                                backgroundColor:
-                                                    isSelected
-                                                        ? "#2563eb"
-                                                        : "transparent",
-
-                                                "&:hover": {
-
-                                                    backgroundColor:
-                                                        isSelected
-                                                            ? "#1d4ed8"
-                                                            : "#e2e8f0"
-
-                                                }
-
-                                            }}
-
+                                        <Typography
+                                            fontSize={12}
+                                            noWrap
                                         >
+                                            {filename}
+                                        </Typography>
 
-                                            <Box
-                                                sx={{
-                                                    width: "100%"
-                                                }}
-                                            >
-
-                                                <Typography
-                                                    variant="body2"
-                                                    fontWeight={
-                                                        isSelected
-                                                            ? "bold"
-                                                            : "medium"
-                                                    }
-                                                    sx={{
-                                                        wordBreak:
-                                                            "break-word"
-                                                    }}
-                                                >
-
-                                                    📄 {filename}
-
-                                                </Typography>
-
-
-                                                {size > 0 && (
-
-                                                    <Typography
-                                                        variant="caption"
-                                                        sx={{
-                                                            opacity:
-                                                                0.75
-                                                        }}
-                                                    >
-
-                                                        {formatFileSize(
-                                                            size
-                                                        )}
-
-                                                    </Typography>
-
-                                                )}
-
-                                            </Box>
-
-                                        </Button>
-
-                                    </ListItem>
+                                    </Button>
 
                                 );
 
                             }
-                        )
+                        )}
 
-                    )}
+                    </Box>
+
+                )}
 
 
-                    <Divider
+                <Divider
+                    sx={{
+                        borderColor: "#1E293B",
+                        mb: 2
+                    }}
+                />
+
+
+                {/* COLUMNS */}
+
+                <Box
+                    sx={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        mb: 1.5
+                    }}
+                >
+
+                    <Typography
                         sx={{
-                            my: 1
+                            fontSize: 11,
+                            color: "#64748B",
+                            fontWeight: 800,
+                            letterSpacing: 1
+                        }}
+                    >
+                        DATA COLUMNS
+                    </Typography>
+
+                    <Chip
+                        label={columns.length}
+                        size="small"
+                        sx={{
+                            height: 22,
+                            minWidth: 28,
+
+                            background:
+                                "rgba(99,102,241,.15)",
+
+                            color: "#A5B4FC",
+
+                            fontSize: 11,
+                            fontWeight: 800
                         }}
                     />
 
-
-                    {/* ================================================= */}
-                    {/* CURRENT DATASET */}
-                    {/* ================================================= */}
-
-                    <ListItem>
-
-                        <ListItemText
-
-                            primary="📂 Current Dataset"
-
-                            secondary={
-                                datasetName ||
-                                "No dataset selected"
-                            }
-
-                            secondaryTypographyProps={{
-                                sx: {
-                                    wordBreak:
-                                        "break-word"
-                                }
-                            }}
-
-                        />
-
-                    </ListItem>
+                </Box>
 
 
-                    {/* ================================================= */}
-                    {/* DATASET STATUS */}
-                    {/* ================================================= */}
+                <Box
+                    sx={{
+                        maxHeight:
+                            "calc(100vh - 390px)",
 
-                    <ListItem>
+                        overflowY: "auto",
 
-                        <ListItemText
-                            primary="Dataset Status"
-                        />
-
-                        <Chip
-
-                            size="small"
-
-                            label={
-                                columns.length > 0
-                                    ? "Loaded"
-                                    : "No Dataset"
-                            }
-
-                            color={
-                                columns.length > 0
-                                    ? "success"
-                                    : "default"
-                            }
-
-                        />
-
-                    </ListItem>
-
-
-                    {/* ================================================= */}
-                    {/* COLUMN COUNT */}
-                    {/* ================================================= */}
-
-                    <ListItem>
-
-                        <ListItemText
-
-                            primary="Columns"
-
-                            secondary={
-                                `${columns.length} columns available`
-                            }
-
-                        />
-
-                    </ListItem>
-
-
-                    {/* ================================================= */}
-                    {/* INSTRUCTION */}
-                    {/* ================================================= */}
-
-                    <ListItem>
-
-                        <ListItemText
-
-                            primary="Drag columns into chart axis boxes"
-
-                            secondary="Use columns to build charts"
-
-                        />
-
-                    </ListItem>
-
-
-                    <Divider
-                        sx={{
-                            my: 1
-                        }}
-                    />
-
-
-                    {/* ================================================= */}
-                    {/* AVAILABLE COLUMNS */}
-                    {/* ================================================= */}
-
-                    <ListItem>
-
-                        <ListItemText
-
-                            primary="Available Columns"
-
-                            primaryTypographyProps={{
-                                fontWeight:
-                                    "bold"
-                            }}
-
-                        />
-
-                    </ListItem>
-
+                        pr: 0.5
+                    }}
+                >
 
                     {columns.length === 0 ? (
 
-                        <ListItem>
+                        <Box
+                            sx={{
+                                p: 2,
+                                borderRadius: 2,
+                                background:
+                                    "#111827"
+                            }}
+                        >
 
-                            <ListItemText
+                            <Typography
+                                fontSize={12}
+                                color="#64748B"
+                            >
+                                Upload a dataset to see
+                                available columns.
+                            </Typography>
 
-                                primary="No columns available"
-
-                                secondary={
-                                    "Select a dataset or upload a file"
-                                }
-
-                            />
-
-                        </ListItem>
+                        </Box>
 
                     ) : (
 
@@ -646,21 +544,17 @@ function Sidebar({
                                         index
                                     );
 
-
                                 return (
 
-                                    <ListItem
-
+                                    <ListItemButton
                                         key={
                                             `${name}-${index}`
                                         }
 
-                                        disablePadding
-
                                         draggable
 
                                         onDragStart={
-                                            (event) =>
+                                            event =>
                                                 handleDragStart(
                                                     event,
                                                     name
@@ -668,70 +562,66 @@ function Sidebar({
                                         }
 
                                         sx={{
+                                            mb: 0.5,
+
+                                            p: 1.2,
+
+                                            borderRadius: 2,
 
                                             cursor:
                                                 "grab",
 
-                                            px: 2,
-
-                                            py: 1,
-
-                                            borderRadius:
-                                                1,
-
                                             "&:hover": {
-
                                                 background:
-                                                    "#e2e8f0"
-
+                                                    "#111C31"
                                             },
 
                                             "&:active": {
-
                                                 cursor:
                                                     "grabbing"
-
                                             }
-
                                         }}
-
                                     >
 
-                                        <ListItemText
-
-                                            primary={
-                                                name
-                                            }
-
-                                            secondary={
-
-                                                <Chip
-
-                                                    size="small"
-
-                                                    label={
-                                                        type
-                                                    }
-
-                                                    color={
-                                                        getTypeColor(
-                                                            type
-                                                        )
-                                                    }
-
-                                                    variant="outlined"
-
-                                                    sx={{
-                                                        mt: 0.5
-                                                    }}
-
-                                                />
-
-                                            }
-
+                                        <DragIndicatorRounded
+                                            sx={{
+                                                fontSize: 17,
+                                                color: "#475569",
+                                                mr: 0.8
+                                            }}
                                         />
 
-                                    </ListItem>
+                                        <Box
+                                            sx={{
+                                                minWidth: 0,
+                                                flexGrow: 1
+                                            }}
+                                        >
+
+                                            <Typography
+                                                fontSize={12}
+                                                fontWeight={600}
+                                                noWrap
+                                            >
+                                                {name}
+                                            </Typography>
+
+                                            <Typography
+                                                fontSize={10}
+                                                sx={{
+                                                    color:
+                                                        getTypeColor(
+                                                            type
+                                                        ),
+                                                    mt: 0.2
+                                                }}
+                                            >
+                                                {type}
+                                            </Typography>
+
+                                        </Box>
+
+                                    </ListItemButton>
 
                                 );
 
@@ -740,121 +630,125 @@ function Sidebar({
 
                     )}
 
+                </Box>
 
-                    {/* ================================================= */}
-                    {/* CALCULATED FIELDS */}
-                    {/* ================================================= */}
 
-                    {
-                        calculatedFields.length >
-                        0 && (
+                {/* CALCULATED FIELDS */}
 
-                            <>
+                {calculatedFields.length > 0 && (
 
-                                <Divider
+                    <Box
+                        sx={{
+                            mt: 2
+                        }}
+                    >
+
+                        <Divider
+                            sx={{
+                                borderColor:
+                                    "#1E293B",
+                                mb: 2
+                            }}
+                        />
+
+                        <Box
+                            sx={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1,
+                                mb: 1
+                            }}
+                        >
+
+                            <FunctionsRounded
+                                sx={{
+                                    fontSize: 17,
+                                    color: "#A78BFA"
+                                }}
+                            />
+
+                            <Typography
+                                fontSize={11}
+                                fontWeight={800}
+                                color="#64748B"
+                            >
+                                CALCULATED FIELDS
+                            </Typography>
+
+                        </Box>
+
+
+                        {calculatedFields.map(
+                            (
+                                field,
+                                index
+                            ) => (
+
+                                <ListItemButton
+                                    key={
+                                        field.id ||
+                                        index
+                                    }
+
+                                    draggable
+
+                                    onDragStart={
+                                        event =>
+                                            handleDragStart(
+                                                event,
+                                                field.name
+                                            )
+                                    }
+
                                     sx={{
-                                        my: 1
+                                        p: 1,
+                                        borderRadius: 2,
+
+                                        "&:hover": {
+                                            background:
+                                                "#111C31"
+                                        }
                                     }}
-                                />
+                                >
 
-
-                                <ListItem>
-
-                                    <ListItemText
-
-                                        primary="🧮 Calculated Fields"
-
-                                        primaryTypographyProps={{
-                                            fontWeight:
-                                                "bold"
+                                    <FunctionsRounded
+                                        sx={{
+                                            fontSize: 15,
+                                            color:
+                                                "#A78BFA",
+                                            mr: 1
                                         }}
-
                                     />
 
-                                </ListItem>
+                                    <Box>
 
+                                        <Typography
+                                            fontSize={12}
+                                            fontWeight={600}
+                                        >
+                                            {field.name}
+                                        </Typography>
 
-                                {
-                                    calculatedFields.map(
-                                        (
-                                            field,
-                                            index
-                                        ) => (
+                                        <Typography
+                                            fontSize={10}
+                                            color="#64748B"
+                                        >
+                                            {field.aggregation &&
+                                            field.sourceColumn
+                                                ? `${field.aggregation}(${field.sourceColumn})`
+                                                : "Calculated field"}
+                                        </Typography>
 
-                                            <ListItem
+                                    </Box>
 
-                                                key={
-                                                    field.id ||
-                                                    index
-                                                }
+                                </ListItemButton>
 
-                                                disablePadding
+                            )
+                        )}
 
-                                                draggable
+                    </Box>
 
-                                                onDragStart={
-                                                    (event) =>
-                                                        handleDragStart(
-                                                            event,
-                                                            field.name
-                                                        )
-                                                }
-
-                                                sx={{
-
-                                                    cursor:
-                                                        "grab",
-
-                                                    px: 2,
-
-                                                    py: 1,
-
-                                                    borderRadius:
-                                                        1,
-
-                                                    "&:hover": {
-
-                                                        background:
-                                                            "#e2e8f0"
-
-                                                    }
-
-                                                }}
-
-                                            >
-
-                                                <ListItemText
-
-                                                    primary={
-                                                        field.name
-                                                    }
-
-                                                    secondary={
-
-                                                        field.aggregation &&
-                                                        field.sourceColumn
-
-                                                            ? `${field.aggregation}(${field.sourceColumn})`
-
-                                                            : "Calculated field"
-
-                                                    }
-
-                                                />
-
-                                            </ListItem>
-
-                                        )
-                                    )
-
-                                }
-
-                            </>
-
-                        )
-                    }
-
-                </List>
+                )}
 
             </Box>
 

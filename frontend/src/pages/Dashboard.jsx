@@ -61,17 +61,13 @@ function Dashboard() {
     // DATASET
     // ============================================================
 
-    const [columns, setColumns] =
-        useState([]);
+    const [columns, setColumns] = useState([]);
 
-    const [datasetData, setDatasetData] =
-        useState([]);
+    const [datasetData, setDatasetData] = useState([]);
 
-    const [datasetName, setDatasetName] =
-        useState("");
+    const [datasetName, setDatasetName] = useState("");
 
-    const [, setSelectedColumns] =
-        useState([]);
+    const [, setSelectedColumns] = useState([]);
 
 
     // ============================================================
@@ -93,23 +89,7 @@ function Dashboard() {
     // SQL CHANGES
     // ============================================================
 
-    const [
-        changes,
-        setChanges
-    ] = useState(null);
-
-
-    // ============================================================
-    // SELECTED SQL CHANGE
-    //
-    // null
-    // inserted
-    // updated
-    // deleted
-    // cells
-    // added_columns
-    // removed_columns
-    // ============================================================
+    const [changes, setChanges] = useState(null);
 
     const [
         selectedChange,
@@ -126,20 +106,16 @@ function Dashboard() {
         setCalculatedFields
     ] = useState([]);
 
-    const calculatedFieldManagerRef =
-        useRef(
-            createCalculatedFieldManager()
-        );
+    const calculatedFieldManagerRef = useRef(
+        createCalculatedFieldManager()
+    );
 
 
     // ============================================================
     // CHARTS
     // ============================================================
 
-    const [
-        charts,
-        setCharts
-    ] = useState([]);
+    const [charts, setCharts] = useState([]);
 
 
     // ============================================================
@@ -160,56 +136,33 @@ function Dashboard() {
     // HANDLE DATASET LOADED
     // ============================================================
 
-    const handleDatasetLoaded = (
-        analysis
-    ) => {
+    const handleDatasetLoaded = (analysis) => {
 
-        console.log(
-            "===================================="
-        );
-
-        console.log(
-            "DATASET LOADED"
-        );
-
-        console.log(
-            analysis
-        );
-
-        console.log(
-            "SQL CHANGES:",
-            analysis?.changes
-        );
-
-        console.log(
-            "===================================="
-        );
+        console.log("====================================");
+        console.log("DATASET LOADED");
+        console.log(analysis);
+        console.log("SQL CHANGES:", analysis?.changes);
+        console.log("====================================");
 
 
         if (!analysis) {
 
             setDatasetName("");
-
             setUploadedDatasetName("");
-
             setColumns([]);
-
             setDatasetData([]);
-
             setChanges(null);
-
             setSelectedChange(null);
 
             resetCalculatedFields();
 
             return;
-
         }
 
 
-        // ========================================================
+        // --------------------------------------------------------
         // FILENAME
-        // ========================================================
+        // --------------------------------------------------------
 
         const filename =
             analysis.filename ||
@@ -217,49 +170,45 @@ function Dashboard() {
             "";
 
 
-        setDatasetName(
-            filename
-        );
+        setDatasetName(filename);
 
 
-        // ========================================================
+        // --------------------------------------------------------
         // COLUMNS
-        // ========================================================
+        // --------------------------------------------------------
 
-        setColumns(
-            Array.isArray(
-                analysis.columns
-            )
+        const nextColumns =
+            Array.isArray(analysis.columns)
                 ? analysis.columns
-                : []
-        );
+                : [];
 
 
-        // ========================================================
+        setColumns(nextColumns);
+
+
+        // --------------------------------------------------------
         // DATA
-        // ========================================================
+        // --------------------------------------------------------
 
-        setDatasetData(
-            Array.isArray(
-                analysis.data
-            )
+        const nextData =
+            Array.isArray(analysis.data)
                 ? analysis.data
-                : []
-        );
+                : [];
 
 
-        // ========================================================
+        setDatasetData(nextData);
+
+
+        // --------------------------------------------------------
         // SQL CHANGES
-        // ========================================================
+        // --------------------------------------------------------
 
         if (
             analysis.changes &&
             typeof analysis.changes === "object"
         ) {
 
-            setChanges(
-                analysis.changes
-            );
+            setChanges(analysis.changes);
 
         }
         else {
@@ -269,29 +218,27 @@ function Dashboard() {
         }
 
 
-        // ========================================================
+        // --------------------------------------------------------
         // RESET SELECTED CHANGE
-        // ========================================================
+        // --------------------------------------------------------
 
         setSelectedChange(null);
 
 
-        // ========================================================
+        // --------------------------------------------------------
         // REMEMBER DATASET
-        // ========================================================
+        // --------------------------------------------------------
 
         if (filename) {
 
-            setUploadedDatasetName(
-                filename
-            );
+            setUploadedDatasetName(filename);
 
         }
 
 
-        // ========================================================
+        // --------------------------------------------------------
         // RESET CALCULATED FIELDS
-        // ========================================================
+        // --------------------------------------------------------
 
         resetCalculatedFields();
 
@@ -304,9 +251,7 @@ function Dashboard() {
 
     const handleDatasetReset = () => {
 
-        console.log(
-            "DATASET RESET"
-        );
+        console.log("DATASET RESET");
 
         setDatasetName("");
 
@@ -322,6 +267,8 @@ function Dashboard() {
 
         setSelectedChange(null);
 
+        setCharts([]);
+
         resetCalculatedFields();
 
     };
@@ -331,14 +278,10 @@ function Dashboard() {
     // HANDLE UPLOAD REFRESH
     // ============================================================
 
-    const handleUploadRefresh = (
-        uploadedFilename
-    ) => {
+    const handleUploadRefresh = (uploadedFilename) => {
 
         if (!uploadedFilename) {
-
             return;
-
         }
 
 
@@ -351,8 +294,7 @@ function Dashboard() {
         );
 
         setDatasetRefreshKey(
-            previous =>
-                previous + 1
+            previous => previous + 1
         );
 
     };
@@ -364,9 +306,7 @@ function Dashboard() {
 
     const handleUploadComplete = () => {
 
-        console.log(
-            "Upload complete."
-        );
+        console.log("Upload complete.");
 
     };
 
@@ -380,9 +320,7 @@ function Dashboard() {
     ) => {
 
         if (!fieldConfig) {
-
             return;
-
         }
 
 
@@ -393,7 +331,6 @@ function Dashboard() {
         ) {
 
             return;
-
         }
 
 
@@ -402,12 +339,11 @@ function Dashboard() {
 
                 ...fieldConfig,
 
-                value:
-                    applyAggregation(
-                        datasetData,
-                        fieldConfig.sourceColumn,
-                        fieldConfig.aggregation
-                    )
+                value: applyAggregation(
+                    datasetData,
+                    fieldConfig.sourceColumn,
+                    fieldConfig.aggregation
+                )
 
             });
 
@@ -429,71 +365,60 @@ function Dashboard() {
     // ENHANCED DATASET
     // ============================================================
 
-    const enhancedDatasetData =
-        useMemo(() => {
+    const enhancedDatasetData = useMemo(() => {
 
-            if (
-                !datasetData ||
-                datasetData.length === 0
-            ) {
+        if (
+            !datasetData ||
+            datasetData.length === 0
+        ) {
 
-                return [];
+            return [];
 
-            }
-
-
-            const fieldDefinitions =
-                calculatedFieldManagerRef
-                    .current
-                    .getAll();
+        }
 
 
-            if (
-                fieldDefinitions.length === 0
-            ) {
-
-                return datasetData;
-
-            }
+        const fieldDefinitions =
+            calculatedFieldManagerRef
+                .current
+                .getAll();
 
 
-            return datasetData.map(
-                (
-                    row
-                ) => {
+        if (
+            fieldDefinitions.length === 0
+        ) {
 
-                    const nextRow = {
-                        ...row
-                    };
+            return datasetData;
+
+        }
 
 
-                    fieldDefinitions.forEach(
-                        (
-                            field
-                        ) => {
+        return datasetData.map(row => {
 
-                            nextRow[
-                                field.name
-                            ] =
-                                applyAggregation(
-                                    datasetData,
-                                    field.sourceColumn,
-                                    field.aggregation
-                                );
+            const nextRow = {
+                ...row
+            };
 
-                        }
+
+            fieldDefinitions.forEach(field => {
+
+                nextRow[field.name] =
+                    applyAggregation(
+                        datasetData,
+                        field.sourceColumn,
+                        field.aggregation
                     );
 
+            });
 
-                    return nextRow;
 
-                }
-            );
+            return nextRow;
 
-        }, [
-            datasetData,
-            calculatedFields.length
-        ]);
+        });
+
+    }, [
+        datasetData,
+        calculatedFields
+    ]);
 
 
     // ============================================================
@@ -523,17 +448,13 @@ function Dashboard() {
 
 
             setCharts(
-                Array.isArray(
-                    generatedCharts
-                )
+                Array.isArray(generatedCharts)
                     ? generatedCharts
                     : []
             );
 
         }
-        catch (
-            error
-        ) {
+        catch (error) {
 
             console.error(
                 "Chart generation error:",
@@ -551,68 +472,49 @@ function Dashboard() {
 
     // ============================================================
     // FORMAT CHANGE COLUMNS
-    //
-    // Supports:
-    //
-    // ["email", "phone"]
-    //
-    // [
-    //   {name: "email"},
-    //   {column: "phone"}
-    // ]
     // ============================================================
 
-    const formatChangeColumns = (
-        value
-    ) => {
+    const formatChangeColumns = (value) => {
 
         if (!Array.isArray(value)) {
-
             return [];
-
         }
 
 
         return value
-            .map(
-                (
-                    item
-                ) => {
+            .map(item => {
 
-                    if (
-                        typeof item === "string" ||
-                        typeof item === "number"
-                    ) {
+                if (
+                    typeof item === "string" ||
+                    typeof item === "number"
+                ) {
 
-                        return String(
-                            item
-                        );
-
-                    }
-
-
-                    if (
-                        item &&
-                        typeof item === "object"
-                    ) {
-
-                        return (
-                            item.name ||
-                            item.column ||
-                            item.column_name ||
-                            item.field ||
-                            item.field_name ||
-                            item.key ||
-                            ""
-                        );
-
-                    }
-
-
-                    return "";
+                    return String(item);
 
                 }
-            )
+
+
+                if (
+                    item &&
+                    typeof item === "object"
+                ) {
+
+                    return (
+                        item.name ||
+                        item.column ||
+                        item.column_name ||
+                        item.field ||
+                        item.field_name ||
+                        item.key ||
+                        ""
+                    );
+
+                }
+
+
+                return "";
+
+            })
             .filter(Boolean);
 
     };
@@ -622,14 +524,10 @@ function Dashboard() {
     // GET ROW DETAILS
     // ============================================================
 
-    const getChangeRows = (
-        type
-    ) => {
+    const getChangeRows = (type) => {
 
         if (!changes) {
-
             return [];
-
         }
 
 
@@ -638,13 +536,9 @@ function Dashboard() {
             case "inserted":
 
                 return (
-                    Array.isArray(
-                        changes.inserted_rows
-                    )
+                    Array.isArray(changes.inserted_rows)
                         ? changes.inserted_rows
-                        : Array.isArray(
-                            changes.insertedRows
-                        )
+                        : Array.isArray(changes.insertedRows)
                             ? changes.insertedRows
                             : []
                 );
@@ -653,13 +547,9 @@ function Dashboard() {
             case "updated":
 
                 return (
-                    Array.isArray(
-                        changes.updated_rows
-                    )
+                    Array.isArray(changes.updated_rows)
                         ? changes.updated_rows
-                        : Array.isArray(
-                            changes.updatedRows
-                        )
+                        : Array.isArray(changes.updatedRows)
                             ? changes.updatedRows
                             : []
                 );
@@ -668,112 +558,12 @@ function Dashboard() {
             case "deleted":
 
                 return (
-                    Array.isArray(
-                        changes.deleted_rows
-                    )
+                    Array.isArray(changes.deleted_rows)
                         ? changes.deleted_rows
-                        : Array.isArray(
-                            changes.deletedRows
-                        )
+                        : Array.isArray(changes.deletedRows)
                             ? changes.deletedRows
                             : []
                 );
-
-
-            // ====================================================
-            // CELLS
-            //
-            // Supports:
-            //
-            // changed_cells
-            // changedCells
-            // cell_changes
-            // cellChanges
-            // updated_cells
-            // updatedCells
-            // cells_changed_rows
-            // ====================================================
-
-            case "cells":
-
-                if (
-                    Array.isArray(
-                        changes.changed_cells
-                    )
-                ) {
-
-                    return changes.changed_cells;
-
-                }
-
-
-                if (
-                    Array.isArray(
-                        changes.changedCells
-                    )
-                ) {
-
-                    return changes.changedCells;
-
-                }
-
-
-                if (
-                    Array.isArray(
-                        changes.cell_changes
-                    )
-                ) {
-
-                    return changes.cell_changes;
-
-                }
-
-
-                if (
-                    Array.isArray(
-                        changes.cellChanges
-                    )
-                ) {
-
-                    return changes.cellChanges;
-
-                }
-
-
-                if (
-                    Array.isArray(
-                        changes.updated_cells
-                    )
-                ) {
-
-                    return changes.updated_cells;
-
-                }
-
-
-                if (
-                    Array.isArray(
-                        changes.updatedCells
-                    )
-                ) {
-
-                    return changes.updatedCells;
-
-                }
-
-
-                if (
-                    Array.isArray(
-                        changes.cells_changed_rows
-                    )
-                ) {
-
-                    return changes.cells_changed_rows;
-
-                }
-
-
-                return [];
 
 
             default:
@@ -786,17 +576,13 @@ function Dashboard() {
 
 
     // ============================================================
-    // GET EXACT CELL DETAILS
-    //
-    // This checks for a cell-specific backend response.
+    // GET EXACT CHANGED CELLS
     // ============================================================
 
     const getChangedCells = () => {
 
         if (!changes) {
-
             return [];
-
         }
 
 
@@ -816,14 +602,16 @@ function Dashboard() {
 
             "cells_changed_details",
 
-            "cellsChangedDetails"
+            "cellsChangedDetails",
+
+            "cells_changed_rows",
+
+            "cellsChangedRows"
 
         ];
 
 
-        for (
-            const key of possibleKeys
-        ) {
+        for (const key of possibleKeys) {
 
             if (
                 Array.isArray(
@@ -847,15 +635,12 @@ function Dashboard() {
     // HANDLE SQL CARD CLICK
     // ============================================================
 
-    const handleChangeCardClick = (
-        type
-    ) => {
+    const handleChangeCardClick = (type) => {
 
-        setSelectedChange(
-            previous =>
-                previous === type
-                    ? null
-                    : type
+        setSelectedChange(previous =>
+            previous === type
+                ? null
+                : type
         );
 
     };
@@ -867,42 +652,27 @@ function Dashboard() {
 
     const getChangeTitle = () => {
 
-        switch (
-            selectedChange
-        ) {
+        switch (selectedChange) {
 
             case "inserted":
-
                 return "Inserted Rows";
 
-
             case "updated":
-
                 return "Updated Rows";
 
-
             case "deleted":
-
                 return "Deleted Rows";
 
-
             case "cells":
-
                 return "Cells Changed";
 
-
             case "added_columns":
-
                 return "Added Columns";
 
-
             case "removed_columns":
-
                 return "Removed Columns";
 
-
             default:
-
                 return "";
 
         }
@@ -916,42 +686,27 @@ function Dashboard() {
 
     const getChangeColor = () => {
 
-        switch (
-            selectedChange
-        ) {
+        switch (selectedChange) {
 
             case "inserted":
-
                 return "#059669";
 
-
             case "updated":
-
                 return "#2563EB";
 
-
             case "deleted":
-
                 return "#DC2626";
 
-
             case "cells":
-
                 return "#7C3AED";
 
-
             case "added_columns":
-
                 return "#0891B2";
 
-
             case "removed_columns":
-
                 return "#EA580C";
 
-
             default:
-
                 return "#64748B";
 
         }
@@ -960,34 +715,26 @@ function Dashboard() {
 
 
     // ============================================================
-    // SELECTED ROW DETAILS
+    // SELECTED CHANGE DATA
     // ============================================================
 
     const selectedChangeRows =
-        getChangeRows(
-            selectedChange
-        );
-
-
-    // ============================================================
-    // EXACT CHANGED CELLS
-    // ============================================================
+        getChangeRows(selectedChange);
 
     const changedCells =
         getChangedCells();
 
 
     // ============================================================
-    // RENDER CHANGE VALUE
+    // SAFE VALUE RENDERER
     // ============================================================
 
-    const renderChangeValue = (
-        value
-    ) => {
+    const renderChangeValue = (value) => {
 
         if (
             value === null ||
-            value === undefined
+            value === undefined ||
+            value === ""
         ) {
 
             return "—";
@@ -999,18 +746,76 @@ function Dashboard() {
             typeof value === "object"
         ) {
 
-            return JSON.stringify(
-                value
-            );
+            try {
+
+                return JSON.stringify(value);
+
+            }
+            catch {
+
+                return String(value);
+
+            }
 
         }
 
 
-        return String(
-            value
-        );
+        return String(value);
 
     };
+
+
+    // ============================================================
+    // GET TABLE COLUMNS
+    // ============================================================
+
+    const getTableColumns = (rows) => {
+
+        if (
+            !Array.isArray(rows) ||
+            rows.length === 0
+        ) {
+
+            return [];
+
+        }
+
+
+        const columnSet = new Set();
+
+
+        rows.forEach(row => {
+
+            if (
+                row &&
+                typeof row === "object" &&
+                !Array.isArray(row)
+            ) {
+
+                Object.keys(row).forEach(key => {
+                    columnSet.add(key);
+                });
+
+            }
+
+        });
+
+
+        return Array.from(columnSet);
+
+    };
+
+
+    const selectedRowColumns =
+        getTableColumns(
+            selectedChangeRows
+        );
+
+
+    const changedCellColumns =
+        getTableColumns(
+            changedCells
+        );
 
 
     // ============================================================
@@ -1068,6 +873,7 @@ function Dashboard() {
             changes?.cellsChanged ??
             changes?.changed_cells_count ??
             changes?.changedCellsCount ??
+            changedCells.length ??
             0
         );
 
@@ -1089,13 +895,10 @@ function Dashboard() {
         {
             title: "Rows",
 
-            value:
-                datasetData.length,
+            value: datasetData.length,
 
             icon: (
-                <TableRows
-                    fontSize="large"
-                />
+                <TableRows fontSize="large" />
             ),
 
             color: "#2563EB"
@@ -1110,9 +913,7 @@ function Dashboard() {
                 calculatedFields.length,
 
             icon: (
-                <ViewColumn
-                    fontSize="large"
-                />
+                <ViewColumn fontSize="large" />
             ),
 
             color: "#059669"
@@ -1122,13 +923,10 @@ function Dashboard() {
         {
             title: "Charts",
 
-            value:
-                charts.length,
+            value: charts.length,
 
             icon: (
-                <InsertChart
-                    fontSize="large"
-                />
+                <InsertChart fontSize="large" />
             ),
 
             color: "#DC2626"
@@ -1144,9 +942,7 @@ function Dashboard() {
                     : "No",
 
             icon: (
-                <SmartToy
-                    fontSize="large"
-                />
+                <SmartToy fontSize="large" />
             ),
 
             color: "#7C3AED"
@@ -1163,132 +959,90 @@ function Dashboard() {
 
         {
             key: "inserted",
-
             title: "Inserted",
-
-            value:
-                insertedCount,
+            value: insertedCount,
 
             icon: (
-                <AddCircle
-                    fontSize="large"
-                />
+                <AddCircle fontSize="large" />
             ),
 
             color: "#059669",
-
             background: "#ECFDF5",
-
             border: "#A7F3D0"
         },
 
 
         {
             key: "updated",
-
             title: "Updated",
-
-            value:
-                updatedCount,
+            value: updatedCount,
 
             icon: (
-                <Edit
-                    fontSize="large"
-                />
+                <Edit fontSize="large" />
             ),
 
             color: "#2563EB",
-
             background: "#EFF6FF",
-
             border: "#BFDBFE"
         },
 
 
         {
             key: "deleted",
-
             title: "Deleted",
-
-            value:
-                deletedCount,
+            value: deletedCount,
 
             icon: (
-                <Delete
-                    fontSize="large"
-                />
+                <Delete fontSize="large" />
             ),
 
             color: "#DC2626",
-
             background: "#FEF2F2",
-
             border: "#FECACA"
         },
 
 
         {
             key: "cells",
-
             title: "Cells Changed",
-
-            value:
-                cellsChangedCount,
+            value: cellsChangedCount,
 
             icon: (
-                <ChangeCircle
-                    fontSize="large"
-                />
+                <ChangeCircle fontSize="large" />
             ),
 
             color: "#7C3AED",
-
             background: "#F5F3FF",
-
             border: "#DDD6FE"
         },
 
 
         {
             key: "added_columns",
-
             title: "Added Columns",
-
-            value:
-                addedColumnsCount,
+            value: addedColumnsCount,
 
             icon: (
-                <ViewList
-                    fontSize="large"
-                />
+                <ViewList fontSize="large" />
             ),
 
             color: "#0891B2",
-
             background: "#ECFEFF",
-
             border: "#A5F3FC"
         },
 
 
         {
             key: "removed_columns",
-
             title: "Removed Columns",
-
-            value:
-                removedColumnsCount,
+            value: removedColumnsCount,
 
             icon: (
-                <RemoveCircle
-                    fontSize="large"
-                />
+                <RemoveCircle fontSize="large" />
             ),
 
             color: "#EA580C",
-
             background: "#FFF7ED",
-
             border: "#FED7AA"
         }
 
@@ -1314,13 +1068,9 @@ function Dashboard() {
 
             <Header
 
-                setColumns={
-                    setColumns
-                }
+                setColumns={setColumns}
 
-                setDatasetData={
-                    setDatasetData
-                }
+                setDatasetData={setDatasetData}
 
                 onCalculatedFieldCreate={
                     handleCalculatedFieldCreate
@@ -1338,9 +1088,7 @@ function Dashboard() {
                     handleUploadRefresh
                 }
 
-                columns={
-                    columns
-                }
+                columns={columns}
 
             />
 
@@ -1351,25 +1099,19 @@ function Dashboard() {
 
             <Sidebar
 
-                columns={
-                    columns
-                }
+                columns={columns}
 
                 calculatedFields={
                     calculatedFields
                 }
 
-                datasetName={
-                    datasetName
-                }
+                datasetName={datasetName}
 
                 datasets={[]}
 
                 datasetsLoading={false}
 
-                onDatasetSelect={
-                    null
-                }
+                onDatasetSelect={null}
 
             />
 
@@ -1380,9 +1122,18 @@ function Dashboard() {
 
             <Box
                 sx={{
-                    ml: "260px",
+                    ml: {
+                        xs: 0,
+                        md: "260px"
+                    },
+
                     mt: "64px",
-                    p: 4
+
+                    p: {
+                        xs: 2,
+                        sm: 3,
+                        md: 4
+                    }
                 }}
             >
 
@@ -1476,9 +1227,7 @@ function Dashboard() {
                                     xs={12}
                                     sm={6}
                                     md={3}
-                                    key={
-                                        index
-                                    }
+                                    key={index}
                                 >
 
                                     <Paper
@@ -1511,8 +1260,7 @@ function Dashboard() {
 
                                         <Box
                                             sx={{
-                                                display:
-                                                    "flex",
+                                                display: "flex",
 
                                                 justifyContent:
                                                     "space-between",
@@ -1580,7 +1328,10 @@ function Dashboard() {
                         <Paper
                             elevation={0}
                             sx={{
-                                p: 3,
+                                p: {
+                                    xs: 2,
+                                    md: 3
+                                },
 
                                 mb: 5,
 
@@ -1628,9 +1379,7 @@ function Dashboard() {
 
                                 {
                                     sqlChangeCards.map(
-                                        (
-                                            card
-                                        ) => {
+                                        card => {
 
                                             const isSelected =
                                                 selectedChange ===
@@ -1651,7 +1400,6 @@ function Dashboard() {
                                                 >
 
                                                     <Paper
-
                                                         elevation={
                                                             isSelected
                                                                 ? 8
@@ -1815,7 +1563,10 @@ function Dashboard() {
                                         sx={{
                                             mt: 4,
 
-                                            p: 3,
+                                            p: {
+                                                xs: 2,
+                                                md: 3
+                                            },
 
                                             borderRadius: 3,
 
@@ -1833,8 +1584,7 @@ function Dashboard() {
 
                                         <Box
                                             sx={{
-                                                display:
-                                                    "flex",
+                                                display: "flex",
 
                                                 justifyContent:
                                                     "space-between",
@@ -1842,7 +1592,12 @@ function Dashboard() {
                                                 alignItems:
                                                     "center",
 
-                                                mb: 3
+                                                gap: 2,
+
+                                                mb: 3,
+
+                                                flexWrap:
+                                                    "wrap"
                                             }}
                                         >
 
@@ -1920,8 +1675,7 @@ function Dashboard() {
                                                 <Box>
 
                                                     {
-                                                        addedColumns.length ===
-                                                            0
+                                                        addedColumns.length === 0
 
                                                             ? (
 
@@ -2026,8 +1780,7 @@ function Dashboard() {
                                                 <Box>
 
                                                     {
-                                                        removedColumns.length ===
-                                                            0
+                                                        removedColumns.length === 0
 
                                                             ? (
 
@@ -2132,8 +1885,7 @@ function Dashboard() {
                                                 <Box>
 
                                                     {
-                                                        changedCells.length ===
-                                                            0
+                                                        changedCells.length === 0
 
                                                             ? (
 
@@ -2230,15 +1982,12 @@ function Dashboard() {
                                                                         should
                                                                         return
                                                                         an array
-                                                                        such as
+                                                                        such as{" "}
                                                                         <strong>
-                                                                            {" "}
                                                                             changed_cells
                                                                         </strong>
-                                                                        {" "}
-                                                                        or
+                                                                        {" "}or{" "}
                                                                         <strong>
-                                                                            {" "}
                                                                             cell_changes
                                                                         </strong>.
                                                                     </Typography>
@@ -2264,7 +2013,10 @@ function Dashboard() {
                                                                             2,
 
                                                                         maxHeight:
-                                                                            500
+                                                                            500,
+
+                                                                        overflow:
+                                                                            "auto"
                                                                     }}
                                                                 >
 
@@ -2278,13 +2030,8 @@ function Dashboard() {
                                                                             <TableRow>
 
                                                                                 {
-                                                                                    Object.keys(
-                                                                                        changedCells[0] ||
-                                                                                        {}
-                                                                                    ).map(
-                                                                                        (
-                                                                                            column
-                                                                                        ) => (
+                                                                                    changedCellColumns.map(
+                                                                                        column => (
 
                                                                                             <TableCell
                                                                                                 key={
@@ -2334,13 +2081,8 @@ function Dashboard() {
                                                                                         >
 
                                                                                             {
-                                                                                                Object.keys(
-                                                                                                    changedCells[0] ||
-                                                                                                    {}
-                                                                                                ).map(
-                                                                                                    (
-                                                                                                        column
-                                                                                                    ) => (
+                                                                                                changedCellColumns.map(
+                                                                                                    column => (
 
                                                                                                         <TableCell
                                                                                                             key={
@@ -2382,23 +2124,17 @@ function Dashboard() {
 
 
                                         {/* ================================================= */}
-                                        {/* INSERTED / UPDATED / DELETED ROWS */}
+                                        {/* INSERTED / UPDATED / DELETED */}
                                         {/* ================================================= */}
 
                                         {
                                             (
-                                                selectedChange ===
-                                                    "inserted" ||
-
-                                                selectedChange ===
-                                                    "updated" ||
-
-                                                selectedChange ===
-                                                    "deleted"
+                                                selectedChange === "inserted" ||
+                                                selectedChange === "updated" ||
+                                                selectedChange === "deleted"
                                             ) && (
 
-                                                selectedChangeRows.length ===
-                                                    0
+                                                selectedChangeRows.length === 0
 
                                                     ? (
 
@@ -2449,7 +2185,10 @@ function Dashboard() {
                                                                     2,
 
                                                                 maxHeight:
-                                                                    500
+                                                                    500,
+
+                                                                overflow:
+                                                                    "auto"
                                                             }}
                                                         >
 
@@ -2463,13 +2202,8 @@ function Dashboard() {
                                                                     <TableRow>
 
                                                                         {
-                                                                            Object.keys(
-                                                                                selectedChangeRows[0] ||
-                                                                                {}
-                                                                            ).map(
-                                                                                (
-                                                                                    column
-                                                                                ) => (
+                                                                            selectedRowColumns.map(
+                                                                                column => (
 
                                                                                     <TableCell
                                                                                         key={
@@ -2516,13 +2250,8 @@ function Dashboard() {
                                                                                 >
 
                                                                                     {
-                                                                                        Object.keys(
-                                                                                            selectedChangeRows[0] ||
-                                                                                            {}
-                                                                                        ).map(
-                                                                                            (
-                                                                                                column
-                                                                                            ) => (
+                                                                                        selectedRowColumns.map(
+                                                                                            column => (
 
                                                                                                 <TableCell
                                                                                                     key={
@@ -2586,13 +2315,9 @@ function Dashboard() {
 
                 <Charts
 
-                    charts={
-                        charts
-                    }
+                    charts={charts}
 
-                    setCharts={
-                        setCharts
-                    }
+                    setCharts={setCharts}
 
                     datasetData={
                         enhancedDatasetData
@@ -2624,11 +2349,9 @@ function Dashboard() {
 
 
                 <ComparisonChart
-
                     datasetData={
                         enhancedDatasetData
                     }
-
                 />
 
             </Box>
