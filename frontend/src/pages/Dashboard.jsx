@@ -29,14 +29,29 @@ import {
     Typography,
     Grid,
     Paper,
-    Divider
+    Divider,
+    Button,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Chip
 } from "@mui/material";
 
 import {
     TableRows,
     ViewColumn,
     InsertChart,
-    SmartToy
+    SmartToy,
+    AddCircle,
+    Edit,
+    Delete,
+    ChangeCircle,
+    ViewList,
+    RemoveCircle,
+    Close
 } from "@mui/icons-material";
 
 
@@ -60,14 +75,13 @@ function Dashboard() {
 
 
     // ============================================================
-    // UPLOAD / DATASET SELECTOR SYNCHRONIZATION
+    // UPLOAD / DATASET SELECTOR
     // ============================================================
 
     const [
         uploadedDatasetName,
         setUploadedDatasetName
     ] = useState("");
-
 
     const [
         datasetRefreshKey,
@@ -86,6 +100,24 @@ function Dashboard() {
 
 
     // ============================================================
+    // SELECTED SQL CHANGE
+    //
+    // null
+    // inserted
+    // updated
+    // deleted
+    // cells
+    // added_columns
+    // removed_columns
+    // ============================================================
+
+    const [
+        selectedChange,
+        setSelectedChange
+    ] = useState(null);
+
+
+    // ============================================================
     // CALCULATED FIELDS
     // ============================================================
 
@@ -93,7 +125,6 @@ function Dashboard() {
         calculatedFields,
         setCalculatedFields
     ] = useState([]);
-
 
     const calculatedFieldManagerRef =
         useRef(
@@ -112,11 +143,7 @@ function Dashboard() {
 
 
     // ============================================================
-    // RESET CALCULATED FIELDS ONLY
-    //
-    // This is used when the USER actually changes dataset.
-    //
-    // It is NOT called after upload as a separate callback.
+    // RESET CALCULATED FIELDS
     // ============================================================
 
     const resetCalculatedFields = () => {
@@ -131,9 +158,6 @@ function Dashboard() {
 
     // ============================================================
     // HANDLE DATASET LOADED
-    //
-    // This is the SINGLE source of truth for changing the
-    // active dataset.
     // ============================================================
 
     const handleDatasetLoaded = (
@@ -153,16 +177,16 @@ function Dashboard() {
         );
 
         console.log(
+            "SQL CHANGES:",
+            analysis?.changes
+        );
+
+        console.log(
             "===================================="
         );
 
 
         if (!analysis) {
-
-            console.warn(
-                "No dataset analysis received."
-            );
-
 
             setDatasetName("");
 
@@ -173,6 +197,8 @@ function Dashboard() {
             setDatasetData([]);
 
             setChanges(null);
+
+            setSelectedChange(null);
 
             resetCalculatedFields();
 
@@ -189,12 +215,6 @@ function Dashboard() {
             analysis.filename ||
             analysis.name ||
             "";
-
-
-        console.log(
-            "ACTIVE DATASET:",
-            filename
-        );
 
 
         setDatasetName(
@@ -234,8 +254,7 @@ function Dashboard() {
 
         if (
             analysis.changes &&
-            typeof analysis.changes ===
-            "object"
+            typeof analysis.changes === "object"
         ) {
 
             setChanges(
@@ -251,7 +270,14 @@ function Dashboard() {
 
 
         // ========================================================
-        // REMEMBER ACTIVE DATASET
+        // RESET SELECTED CHANGE
+        // ========================================================
+
+        setSelectedChange(null);
+
+
+        // ========================================================
+        // REMEMBER DATASET
         // ========================================================
 
         if (filename) {
@@ -265,12 +291,6 @@ function Dashboard() {
 
         // ========================================================
         // RESET CALCULATED FIELDS
-        //
-        // This is okay because this function means:
-        //
-        // "The active dataset has changed."
-        //
-        // It happens exactly once per actual dataset load.
         // ========================================================
 
         resetCalculatedFields();
@@ -288,7 +308,6 @@ function Dashboard() {
             "DATASET RESET"
         );
 
-
         setDatasetName("");
 
         setUploadedDatasetName("");
@@ -301,6 +320,8 @@ function Dashboard() {
 
         setChanges(null);
 
+        setSelectedChange(null);
+
         resetCalculatedFields();
 
     };
@@ -308,39 +329,11 @@ function Dashboard() {
 
     // ============================================================
     // HANDLE UPLOAD REFRESH
-    //
-    // IMPORTANT:
-    //
-    // This DOES NOT load the dataset.
-    //
-    // Upload.jsx has already called handleDatasetLoaded().
-    //
-    // This only tells DatasetSelector:
-    //
-    // "Update your MinIO list and select this filename."
     // ============================================================
 
     const handleUploadRefresh = (
         uploadedFilename
     ) => {
-
-        console.log(
-            "===================================="
-        );
-
-        console.log(
-            "UPLOAD REFRESH"
-        );
-
-        console.log(
-            "Uploaded filename:",
-            uploadedFilename
-        );
-
-        console.log(
-            "===================================="
-        );
-
 
         if (!uploadedFilename) {
 
@@ -353,11 +346,9 @@ function Dashboard() {
             uploadedFilename
         );
 
-
         setDatasetName(
             uploadedFilename
         );
-
 
         setDatasetRefreshKey(
             previous =>
@@ -369,16 +360,6 @@ function Dashboard() {
 
     // ============================================================
     // UPLOAD COMPLETE
-    //
-    // DO NOTHING HERE.
-    //
-    // The dataset was already loaded by handleDatasetLoaded().
-    //
-    // In particular, DO NOT:
-    //
-    // setCharts([])
-    //
-    // because that causes the visible chart refresh.
     // ============================================================
 
     const handleUploadComplete = () => {
@@ -517,8 +498,6 @@ function Dashboard() {
 
     // ============================================================
     // GENERATE DEFAULT CHARTS
-    //
-    // Charts regenerate only when actual dataset data changes.
     // ============================================================
 
     useEffect(() => {
@@ -571,18 +550,25 @@ function Dashboard() {
 
 
     // ============================================================
-    // FORMAT SQL CHANGE COLUMN
+    // FORMAT CHANGE COLUMNS
+    //
+    // Supports:
+    //
+    // ["email", "phone"]
+    //
+    // [
+    //   {name: "email"},
+    //   {column: "phone"}
+    // ]
     // ============================================================
 
     const formatChangeColumns = (
         value
     ) => {
 
-        if (
-            !Array.isArray(value)
-        ) {
+        if (!Array.isArray(value)) {
 
-            return "";
+            return [];
 
         }
 
@@ -594,10 +580,8 @@ function Dashboard() {
                 ) => {
 
                     if (
-                        typeof item ===
-                            "string" ||
-                        typeof item ===
-                            "number"
+                        typeof item === "string" ||
+                        typeof item === "number"
                     ) {
 
                         return String(
@@ -609,8 +593,7 @@ function Dashboard() {
 
                     if (
                         item &&
-                        typeof item ===
-                            "object"
+                        typeof item === "object"
                     ) {
 
                         return (
@@ -619,9 +602,8 @@ function Dashboard() {
                             item.column_name ||
                             item.field ||
                             item.field_name ||
-                            JSON.stringify(
-                                item
-                            )
+                            item.key ||
+                            ""
                         );
 
                     }
@@ -631,14 +613,475 @@ function Dashboard() {
 
                 }
             )
-            .filter(Boolean)
-            .join(", ");
+            .filter(Boolean);
 
     };
 
 
     // ============================================================
-    // KPI CARDS
+    // GET ROW DETAILS
+    // ============================================================
+
+    const getChangeRows = (
+        type
+    ) => {
+
+        if (!changes) {
+
+            return [];
+
+        }
+
+
+        switch (type) {
+
+            case "inserted":
+
+                return (
+                    Array.isArray(
+                        changes.inserted_rows
+                    )
+                        ? changes.inserted_rows
+                        : Array.isArray(
+                            changes.insertedRows
+                        )
+                            ? changes.insertedRows
+                            : []
+                );
+
+
+            case "updated":
+
+                return (
+                    Array.isArray(
+                        changes.updated_rows
+                    )
+                        ? changes.updated_rows
+                        : Array.isArray(
+                            changes.updatedRows
+                        )
+                            ? changes.updatedRows
+                            : []
+                );
+
+
+            case "deleted":
+
+                return (
+                    Array.isArray(
+                        changes.deleted_rows
+                    )
+                        ? changes.deleted_rows
+                        : Array.isArray(
+                            changes.deletedRows
+                        )
+                            ? changes.deletedRows
+                            : []
+                );
+
+
+            // ====================================================
+            // CELLS
+            //
+            // Supports:
+            //
+            // changed_cells
+            // changedCells
+            // cell_changes
+            // cellChanges
+            // updated_cells
+            // updatedCells
+            // cells_changed_rows
+            // ====================================================
+
+            case "cells":
+
+                if (
+                    Array.isArray(
+                        changes.changed_cells
+                    )
+                ) {
+
+                    return changes.changed_cells;
+
+                }
+
+
+                if (
+                    Array.isArray(
+                        changes.changedCells
+                    )
+                ) {
+
+                    return changes.changedCells;
+
+                }
+
+
+                if (
+                    Array.isArray(
+                        changes.cell_changes
+                    )
+                ) {
+
+                    return changes.cell_changes;
+
+                }
+
+
+                if (
+                    Array.isArray(
+                        changes.cellChanges
+                    )
+                ) {
+
+                    return changes.cellChanges;
+
+                }
+
+
+                if (
+                    Array.isArray(
+                        changes.updated_cells
+                    )
+                ) {
+
+                    return changes.updated_cells;
+
+                }
+
+
+                if (
+                    Array.isArray(
+                        changes.updatedCells
+                    )
+                ) {
+
+                    return changes.updatedCells;
+
+                }
+
+
+                if (
+                    Array.isArray(
+                        changes.cells_changed_rows
+                    )
+                ) {
+
+                    return changes.cells_changed_rows;
+
+                }
+
+
+                return [];
+
+
+            default:
+
+                return [];
+
+        }
+
+    };
+
+
+    // ============================================================
+    // GET EXACT CELL DETAILS
+    //
+    // This checks for a cell-specific backend response.
+    // ============================================================
+
+    const getChangedCells = () => {
+
+        if (!changes) {
+
+            return [];
+
+        }
+
+
+        const possibleKeys = [
+
+            "changed_cells",
+
+            "changedCells",
+
+            "cell_changes",
+
+            "cellChanges",
+
+            "updated_cells",
+
+            "updatedCells",
+
+            "cells_changed_details",
+
+            "cellsChangedDetails"
+
+        ];
+
+
+        for (
+            const key of possibleKeys
+        ) {
+
+            if (
+                Array.isArray(
+                    changes[key]
+                )
+            ) {
+
+                return changes[key];
+
+            }
+
+        }
+
+
+        return [];
+
+    };
+
+
+    // ============================================================
+    // HANDLE SQL CARD CLICK
+    // ============================================================
+
+    const handleChangeCardClick = (
+        type
+    ) => {
+
+        setSelectedChange(
+            previous =>
+                previous === type
+                    ? null
+                    : type
+        );
+
+    };
+
+
+    // ============================================================
+    // CHANGE TITLE
+    // ============================================================
+
+    const getChangeTitle = () => {
+
+        switch (
+            selectedChange
+        ) {
+
+            case "inserted":
+
+                return "Inserted Rows";
+
+
+            case "updated":
+
+                return "Updated Rows";
+
+
+            case "deleted":
+
+                return "Deleted Rows";
+
+
+            case "cells":
+
+                return "Cells Changed";
+
+
+            case "added_columns":
+
+                return "Added Columns";
+
+
+            case "removed_columns":
+
+                return "Removed Columns";
+
+
+            default:
+
+                return "";
+
+        }
+
+    };
+
+
+    // ============================================================
+    // CHANGE COLOR
+    // ============================================================
+
+    const getChangeColor = () => {
+
+        switch (
+            selectedChange
+        ) {
+
+            case "inserted":
+
+                return "#059669";
+
+
+            case "updated":
+
+                return "#2563EB";
+
+
+            case "deleted":
+
+                return "#DC2626";
+
+
+            case "cells":
+
+                return "#7C3AED";
+
+
+            case "added_columns":
+
+                return "#0891B2";
+
+
+            case "removed_columns":
+
+                return "#EA580C";
+
+
+            default:
+
+                return "#64748B";
+
+        }
+
+    };
+
+
+    // ============================================================
+    // SELECTED ROW DETAILS
+    // ============================================================
+
+    const selectedChangeRows =
+        getChangeRows(
+            selectedChange
+        );
+
+
+    // ============================================================
+    // EXACT CHANGED CELLS
+    // ============================================================
+
+    const changedCells =
+        getChangedCells();
+
+
+    // ============================================================
+    // RENDER CHANGE VALUE
+    // ============================================================
+
+    const renderChangeValue = (
+        value
+    ) => {
+
+        if (
+            value === null ||
+            value === undefined
+        ) {
+
+            return "—";
+
+        }
+
+
+        if (
+            typeof value === "object"
+        ) {
+
+            return JSON.stringify(
+                value
+            );
+
+        }
+
+
+        return String(
+            value
+        );
+
+    };
+
+
+    // ============================================================
+    // COLUMN COUNTS
+    // ============================================================
+
+    const addedColumns =
+        formatChangeColumns(
+            changes?.added_columns ||
+            changes?.addedColumns
+        );
+
+
+    const removedColumns =
+        formatChangeColumns(
+            changes?.removed_columns ||
+            changes?.removedColumns
+        );
+
+
+    // ============================================================
+    // SQL CHANGE COUNTS
+    // ============================================================
+
+    const insertedCount =
+        Number(
+            changes?.inserted ??
+            changes?.inserted_count ??
+            changes?.insertedCount ??
+            0
+        );
+
+
+    const updatedCount =
+        Number(
+            changes?.updated ??
+            changes?.updated_count ??
+            changes?.updatedCount ??
+            0
+        );
+
+
+    const deletedCount =
+        Number(
+            changes?.deleted ??
+            changes?.deleted_count ??
+            changes?.deletedCount ??
+            0
+        );
+
+
+    const cellsChangedCount =
+        Number(
+            changes?.cells_changed ??
+            changes?.cellsChanged ??
+            changes?.changed_cells_count ??
+            changes?.changedCellsCount ??
+            0
+        );
+
+
+    const addedColumnsCount =
+        addedColumns.length;
+
+
+    const removedColumnsCount =
+        removedColumns.length;
+
+
+    // ============================================================
+    // MAIN KPI CARDS
     // ============================================================
 
     const cards = [
@@ -658,6 +1101,7 @@ function Dashboard() {
             color: "#2563EB"
         },
 
+
         {
             title: "Columns",
 
@@ -674,6 +1118,7 @@ function Dashboard() {
             color: "#059669"
         },
 
+
         {
             title: "Charts",
 
@@ -688,6 +1133,7 @@ function Dashboard() {
 
             color: "#DC2626"
         },
+
 
         {
             title: "AI Ready",
@@ -704,6 +1150,146 @@ function Dashboard() {
             ),
 
             color: "#7C3AED"
+        }
+
+    ];
+
+
+    // ============================================================
+    // SQL CHANGE KPI CARDS
+    // ============================================================
+
+    const sqlChangeCards = [
+
+        {
+            key: "inserted",
+
+            title: "Inserted",
+
+            value:
+                insertedCount,
+
+            icon: (
+                <AddCircle
+                    fontSize="large"
+                />
+            ),
+
+            color: "#059669",
+
+            background: "#ECFDF5",
+
+            border: "#A7F3D0"
+        },
+
+
+        {
+            key: "updated",
+
+            title: "Updated",
+
+            value:
+                updatedCount,
+
+            icon: (
+                <Edit
+                    fontSize="large"
+                />
+            ),
+
+            color: "#2563EB",
+
+            background: "#EFF6FF",
+
+            border: "#BFDBFE"
+        },
+
+
+        {
+            key: "deleted",
+
+            title: "Deleted",
+
+            value:
+                deletedCount,
+
+            icon: (
+                <Delete
+                    fontSize="large"
+                />
+            ),
+
+            color: "#DC2626",
+
+            background: "#FEF2F2",
+
+            border: "#FECACA"
+        },
+
+
+        {
+            key: "cells",
+
+            title: "Cells Changed",
+
+            value:
+                cellsChangedCount,
+
+            icon: (
+                <ChangeCircle
+                    fontSize="large"
+                />
+            ),
+
+            color: "#7C3AED",
+
+            background: "#F5F3FF",
+
+            border: "#DDD6FE"
+        },
+
+
+        {
+            key: "added_columns",
+
+            title: "Added Columns",
+
+            value:
+                addedColumnsCount,
+
+            icon: (
+                <ViewList
+                    fontSize="large"
+                />
+            ),
+
+            color: "#0891B2",
+
+            background: "#ECFEFF",
+
+            border: "#A5F3FC"
+        },
+
+
+        {
+            key: "removed_columns",
+
+            title: "Removed Columns",
+
+            value:
+                removedColumnsCount,
+
+            icon: (
+                <RemoveCircle
+                    fontSize="large"
+                />
+            ),
+
+            color: "#EA580C",
+
+            background: "#FFF7ED",
+
+            border: "#FED7AA"
         }
 
     ];
@@ -801,7 +1387,7 @@ function Dashboard() {
             >
 
                 {/* ================================================= */}
-                {/* MINIO DATASET SELECTOR */}
+                {/* DATASET SELECTOR */}
                 {/* ================================================= */}
 
                 <DatasetSelector
@@ -858,18 +1444,16 @@ function Dashboard() {
                         mb: 4
                     }}
                 >
-
                     {
                         datasetName
                             ? `Current dataset: ${datasetName}`
                             : "Select a dataset or upload a file to begin"
                     }
-
                 </Typography>
 
 
                 {/* ================================================= */}
-                {/* KPI CARDS */}
+                {/* MAIN KPI CARDS */}
                 {/* ================================================= */}
 
                 <Grid
@@ -880,103 +1464,108 @@ function Dashboard() {
                     }}
                 >
 
-                    {cards.map(
-                        (
-                            card,
-                            index
-                        ) => (
+                    {
+                        cards.map(
+                            (
+                                card,
+                                index
+                            ) => (
 
-                            <Grid
-                                item
-                                xs={12}
-                                sm={6}
-                                md={3}
-                                key={
-                                    index
-                                }
-                            >
-
-                                <Paper
-                                    elevation={0}
-                                    sx={{
-                                        p: 3,
-                                        borderRadius: 4,
-                                        background: "#fff",
-                                        border:
-                                            "1px solid #ECECEC",
-                                        transition:
-                                            "0.3s",
-
-                                        "&:hover": {
-
-                                            transform:
-                                                "translateY(-5px)",
-
-                                            boxShadow:
-                                                "0px 12px 25px rgba(0,0,0,.08)"
-
-                                        }
-                                    }}
+                                <Grid
+                                    item
+                                    xs={12}
+                                    sm={6}
+                                    md={3}
+                                    key={
+                                        index
+                                    }
                                 >
 
-                                    <Box
+                                    <Paper
+                                        elevation={0}
                                         sx={{
-                                            display:
-                                                "flex",
+                                            p: 3,
 
-                                            justifyContent:
-                                                "space-between",
+                                            borderRadius: 4,
 
-                                            alignItems:
-                                                "center"
+                                            background:
+                                                "#FFFFFF",
+
+                                            border:
+                                                "1px solid #ECECEC",
+
+                                            transition:
+                                                "all 0.3s ease",
+
+                                            "&:hover": {
+
+                                                transform:
+                                                    "translateY(-5px)",
+
+                                                boxShadow:
+                                                    "0px 12px 25px rgba(0,0,0,.08)"
+
+                                            }
                                         }}
                                     >
 
-                                        <Box>
-
-                                            <Typography
-                                                color="text.secondary"
-                                                variant="body2"
-                                            >
-                                                {
-                                                    card.title
-                                                }
-                                            </Typography>
-
-
-                                            <Typography
-                                                variant="h4"
-                                                fontWeight="bold"
-                                            >
-                                                {
-                                                    card.value
-                                                }
-                                            </Typography>
-
-                                        </Box>
-
-
                                         <Box
                                             sx={{
-                                                color:
-                                                    card.color
+                                                display:
+                                                    "flex",
+
+                                                justifyContent:
+                                                    "space-between",
+
+                                                alignItems:
+                                                    "center"
                                             }}
                                         >
 
-                                            {
-                                                card.icon
-                                            }
+                                            <Box>
+
+                                                <Typography
+                                                    color="text.secondary"
+                                                    variant="body2"
+                                                >
+                                                    {
+                                                        card.title
+                                                    }
+                                                </Typography>
+
+
+                                                <Typography
+                                                    variant="h4"
+                                                    fontWeight="bold"
+                                                >
+                                                    {
+                                                        card.value
+                                                    }
+                                                </Typography>
+
+                                            </Box>
+
+
+                                            <Box
+                                                sx={{
+                                                    color:
+                                                        card.color
+                                                }}
+                                            >
+                                                {
+                                                    card.icon
+                                                }
+                                            </Box>
 
                                         </Box>
 
-                                    </Box>
+                                    </Paper>
 
-                                </Paper>
+                                </Grid>
 
-                            </Grid>
-
+                            )
                         )
-                    )}
+                    }
 
                 </Grid>
 
@@ -985,413 +1574,999 @@ function Dashboard() {
                 {/* SQL CHANGES */}
                 {/* ================================================= */}
 
-                {changes && (
+                {
+                    changes && (
 
-                    <Paper
-                        elevation={0}
-                        sx={{
-                            p: 3,
-                            mb: 5,
-                            borderRadius: 4,
-                            background: "#FFFFFF",
-                            border:
-                                "1px solid #ECECEC"
-                        }}
-                    >
-
-                        <Typography
-                            variant="h5"
-                            fontWeight="bold"
+                        <Paper
+                            elevation={0}
                             sx={{
-                                mb: 3
+                                p: 3,
+
+                                mb: 5,
+
+                                borderRadius: 4,
+
+                                background:
+                                    "#FFFFFF",
+
+                                border:
+                                    "1px solid #ECECEC"
                             }}
                         >
-                            SQL Changes
-                        </Typography>
+
+                            <Typography
+                                variant="h5"
+                                fontWeight="bold"
+                                sx={{
+                                    mb: 1
+                                }}
+                            >
+                                SQL Changes
+                            </Typography>
 
 
-                        <Grid
-                            container
-                            spacing={2}
-                        >
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{
+                                    mb: 3
+                                }}
+                            >
+                                Click a card to view
+                                the affected details.
+                            </Typography>
+
+
+                            {/* ================================================= */}
+                            {/* SQL KPI CARDS */}
+                            {/* ================================================= */}
 
                             <Grid
-                                item
-                                xs={12}
-                                sm={6}
-                                md={3}
+                                container
+                                spacing={2}
                             >
 
-                                <Paper
-                                    elevation={0}
-                                    sx={{
-                                        p: 2,
-                                        borderRadius: 3,
-                                        background:
-                                            "#ECFDF5",
-                                        border:
-                                            "1px solid #A7F3D0"
-                                    }}
-                                >
+                                {
+                                    sqlChangeCards.map(
+                                        (
+                                            card
+                                        ) => {
 
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                    >
-                                        Inserted
-                                    </Typography>
+                                            const isSelected =
+                                                selectedChange ===
+                                                card.key;
 
-                                    <Typography
-                                        variant="h4"
-                                        fontWeight="bold"
-                                        sx={{
-                                            color:
-                                                "#059669"
-                                        }}
-                                    >
-                                        {
-                                            Number(
-                                                changes.inserted ||
-                                                0
-                                            )
+
+                                            return (
+
+                                                <Grid
+                                                    item
+                                                    xs={12}
+                                                    sm={6}
+                                                    md={4}
+                                                    lg={2}
+                                                    key={
+                                                        card.key
+                                                    }
+                                                >
+
+                                                    <Paper
+
+                                                        elevation={
+                                                            isSelected
+                                                                ? 8
+                                                                : 0
+                                                        }
+
+                                                        onClick={() =>
+                                                            handleChangeCardClick(
+                                                                card.key
+                                                            )
+                                                        }
+
+                                                        sx={{
+                                                            p: 2.5,
+
+                                                            minHeight:
+                                                                155,
+
+                                                            borderRadius:
+                                                                3,
+
+                                                            background:
+                                                                card.background,
+
+                                                            border:
+                                                                `1px solid ${card.border}`,
+
+                                                            cursor:
+                                                                "pointer",
+
+                                                            transition:
+                                                                "all 0.25s ease",
+
+                                                            transform:
+                                                                isSelected
+                                                                    ? "translateY(-5px)"
+                                                                    : "none",
+
+                                                            boxShadow:
+                                                                isSelected
+                                                                    ? `0 10px 25px ${card.color}35`
+                                                                    : "none",
+
+                                                            "&:hover": {
+
+                                                                transform:
+                                                                    "translateY(-5px)",
+
+                                                                boxShadow:
+                                                                    `0 10px 25px ${card.color}25`
+
+                                                            }
+                                                        }}
+                                                    >
+
+                                                        <Box
+                                                            sx={{
+                                                                display:
+                                                                    "flex",
+
+                                                                justifyContent:
+                                                                    "space-between",
+
+                                                                alignItems:
+                                                                    "flex-start",
+
+                                                                height:
+                                                                    "100%"
+                                                            }}
+                                                        >
+
+                                                            <Box>
+
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    color="text.secondary"
+                                                                    sx={{
+                                                                        mb: 0.5
+                                                                    }}
+                                                                >
+                                                                    {
+                                                                        card.title
+                                                                    }
+                                                                </Typography>
+
+
+                                                                <Typography
+                                                                    variant="h4"
+                                                                    fontWeight="bold"
+                                                                    sx={{
+                                                                        color:
+                                                                            card.color
+                                                                    }}
+                                                                >
+                                                                    {
+                                                                        card.value
+                                                                    }
+                                                                </Typography>
+
+
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    sx={{
+                                                                        display:
+                                                                            "block",
+
+                                                                        mt: 1,
+
+                                                                        color:
+                                                                            card.color,
+
+                                                                        fontWeight:
+                                                                            600
+                                                                    }}
+                                                                >
+                                                                    {
+                                                                        isSelected
+                                                                            ? "Click to close"
+                                                                            : "Click to view details"
+                                                                    }
+                                                                </Typography>
+
+                                                            </Box>
+
+
+                                                            <Box
+                                                                sx={{
+                                                                    color:
+                                                                        card.color
+                                                                }}
+                                                            >
+                                                                {
+                                                                    card.icon
+                                                                }
+                                                            </Box>
+
+                                                        </Box>
+
+                                                    </Paper>
+
+                                                </Grid>
+
+                                            );
+
                                         }
-                                    </Typography>
-
-                                </Paper>
+                                    )
+                                }
 
                             </Grid>
 
 
-                            <Grid
-                                item
-                                xs={12}
-                                sm={6}
-                                md={3}
-                            >
+                            {/* ================================================= */}
+                            {/* SELECTED CHANGE DETAILS */}
+                            {/* ================================================= */}
 
-                                <Paper
-                                    elevation={0}
-                                    sx={{
-                                        p: 2,
-                                        borderRadius: 3,
-                                        background:
-                                            "#EFF6FF",
-                                        border:
-                                            "1px solid #BFDBFE"
-                                    }}
-                                >
+                            {
+                                selectedChange && (
 
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                    >
-                                        Updated
-                                    </Typography>
-
-                                    <Typography
-                                        variant="h4"
-                                        fontWeight="bold"
+                                    <Paper
+                                        elevation={0}
                                         sx={{
-                                            color:
-                                                "#2563EB"
+                                            mt: 4,
+
+                                            p: 3,
+
+                                            borderRadius: 3,
+
+                                            border:
+                                                `1px solid ${getChangeColor()}40`,
+
+                                            background:
+                                                "#FFFFFF"
                                         }}
                                     >
+
+                                        {/* ========================================= */}
+                                        {/* DETAIL HEADER */}
+                                        {/* ========================================= */}
+
+                                        <Box
+                                            sx={{
+                                                display:
+                                                    "flex",
+
+                                                justifyContent:
+                                                    "space-between",
+
+                                                alignItems:
+                                                    "center",
+
+                                                mb: 3
+                                            }}
+                                        >
+
+                                            <Box>
+
+                                                <Typography
+                                                    variant="h6"
+                                                    fontWeight="bold"
+                                                    sx={{
+                                                        color:
+                                                            getChangeColor()
+                                                    }}
+                                                >
+                                                    {
+                                                        getChangeTitle()
+                                                    }
+                                                </Typography>
+
+
+                                                <Typography
+                                                    variant="body2"
+                                                    color="text.secondary"
+                                                >
+
+                                                    {
+                                                        selectedChange ===
+                                                            "added_columns"
+
+                                                            ? `${addedColumns.length} column(s) added`
+
+                                                            : selectedChange ===
+                                                                "removed_columns"
+
+                                                                ? `${removedColumns.length} column(s) removed`
+
+                                                                : selectedChange ===
+                                                                    "cells"
+
+                                                                    ? `${cellsChangedCount} cell(s) changed`
+
+                                                                    : `${selectedChangeRows.length} row(s) affected`
+                                                    }
+
+                                                </Typography>
+
+                                            </Box>
+
+
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                startIcon={
+                                                    <Close />
+                                                }
+                                                onClick={() =>
+                                                    setSelectedChange(
+                                                        null
+                                                    )
+                                                }
+                                            >
+                                                Close
+                                            </Button>
+
+                                        </Box>
+
+
+                                        {/* ================================================= */}
+                                        {/* ADDED COLUMNS */}
+                                        {/* ================================================= */}
+
                                         {
-                                            Number(
-                                                changes.updated ||
-                                                0
+                                            selectedChange ===
+                                                "added_columns" && (
+
+                                                <Box>
+
+                                                    {
+                                                        addedColumns.length ===
+                                                            0
+
+                                                            ? (
+
+                                                                <Box
+                                                                    sx={{
+                                                                        p: 4,
+
+                                                                        textAlign:
+                                                                            "center",
+
+                                                                        background:
+                                                                            "#F8FAFC",
+
+                                                                        borderRadius:
+                                                                            2
+                                                                    }}
+                                                                >
+
+                                                                    <Typography
+                                                                        color="text.secondary"
+                                                                    >
+                                                                        No added
+                                                                        column
+                                                                        details
+                                                                        were
+                                                                        returned
+                                                                        by the
+                                                                        backend.
+                                                                    </Typography>
+
+                                                                </Box>
+
+                                                            )
+
+                                                            : (
+
+                                                                <Box
+                                                                    sx={{
+                                                                        display:
+                                                                            "flex",
+
+                                                                        flexWrap:
+                                                                            "wrap",
+
+                                                                        gap: 1.5
+                                                                    }}
+                                                                >
+
+                                                                    {
+                                                                        addedColumns.map(
+                                                                            (
+                                                                                column,
+                                                                                index
+                                                                            ) => (
+
+                                                                                <Chip
+                                                                                    key={
+                                                                                        `${column}-${index}`
+                                                                                    }
+
+                                                                                    label={
+                                                                                        column
+                                                                                    }
+
+                                                                                    icon={
+                                                                                        <AddCircle />
+                                                                                    }
+
+                                                                                    color="info"
+
+                                                                                    variant="outlined"
+
+                                                                                    sx={{
+                                                                                        fontWeight:
+                                                                                            600
+                                                                                    }}
+                                                                                />
+
+                                                                            )
+                                                                        )
+                                                                    }
+
+                                                                </Box>
+
+                                                            )
+                                                    }
+
+                                                </Box>
+
                                             )
                                         }
-                                    </Typography>
-
-                                </Paper>
-
-                            </Grid>
 
 
-                            <Grid
-                                item
-                                xs={12}
-                                sm={6}
-                                md={3}
-                            >
+                                        {/* ================================================= */}
+                                        {/* REMOVED COLUMNS */}
+                                        {/* ================================================= */}
 
-                                <Paper
-                                    elevation={0}
-                                    sx={{
-                                        p: 2,
-                                        borderRadius: 3,
-                                        background:
-                                            "#FEF2F2",
-                                        border:
-                                            "1px solid #FECACA"
-                                    }}
-                                >
-
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                    >
-                                        Deleted
-                                    </Typography>
-
-                                    <Typography
-                                        variant="h4"
-                                        fontWeight="bold"
-                                        sx={{
-                                            color:
-                                                "#DC2626"
-                                        }}
-                                    >
                                         {
-                                            Number(
-                                                changes.deleted ||
-                                                0
+                                            selectedChange ===
+                                                "removed_columns" && (
+
+                                                <Box>
+
+                                                    {
+                                                        removedColumns.length ===
+                                                            0
+
+                                                            ? (
+
+                                                                <Box
+                                                                    sx={{
+                                                                        p: 4,
+
+                                                                        textAlign:
+                                                                            "center",
+
+                                                                        background:
+                                                                            "#F8FAFC",
+
+                                                                        borderRadius:
+                                                                            2
+                                                                    }}
+                                                                >
+
+                                                                    <Typography
+                                                                        color="text.secondary"
+                                                                    >
+                                                                        No removed
+                                                                        column
+                                                                        details
+                                                                        were
+                                                                        returned
+                                                                        by the
+                                                                        backend.
+                                                                    </Typography>
+
+                                                                </Box>
+
+                                                            )
+
+                                                            : (
+
+                                                                <Box
+                                                                    sx={{
+                                                                        display:
+                                                                            "flex",
+
+                                                                        flexWrap:
+                                                                            "wrap",
+
+                                                                        gap: 1.5
+                                                                    }}
+                                                                >
+
+                                                                    {
+                                                                        removedColumns.map(
+                                                                            (
+                                                                                column,
+                                                                                index
+                                                                            ) => (
+
+                                                                                <Chip
+                                                                                    key={
+                                                                                        `${column}-${index}`
+                                                                                    }
+
+                                                                                    label={
+                                                                                        column
+                                                                                    }
+
+                                                                                    icon={
+                                                                                        <RemoveCircle />
+                                                                                    }
+
+                                                                                    color="warning"
+
+                                                                                    variant="outlined"
+
+                                                                                    sx={{
+                                                                                        fontWeight:
+                                                                                            600
+                                                                                    }}
+                                                                                />
+
+                                                                            )
+                                                                        )
+                                                                    }
+
+                                                                </Box>
+
+                                                            )
+                                                    }
+
+                                                </Box>
+
                                             )
                                         }
-                                    </Typography>
-
-                                </Paper>
-
-                            </Grid>
 
 
-                            <Grid
-                                item
-                                xs={12}
-                                sm={6}
-                                md={3}
-                            >
+                                        {/* ================================================= */}
+                                        {/* CELLS CHANGED */}
+                                        {/* ================================================= */}
 
-                                <Paper
-                                    elevation={0}
-                                    sx={{
-                                        p: 2,
-                                        borderRadius: 3,
-                                        background:
-                                            "#F5F3FF",
-                                        border:
-                                            "1px solid #DDD6FE"
-                                    }}
-                                >
-
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                    >
-                                        Cells Changed
-                                    </Typography>
-
-                                    <Typography
-                                        variant="h4"
-                                        fontWeight="bold"
-                                        sx={{
-                                            color:
-                                                "#7C3AED"
-                                        }}
-                                    >
                                         {
-                                            Number(
-                                                changes.cells_changed ||
-                                                0
+                                            selectedChange ===
+                                                "cells" && (
+
+                                                <Box>
+
+                                                    {
+                                                        changedCells.length ===
+                                                            0
+
+                                                            ? (
+
+                                                                <Box
+                                                                    sx={{
+                                                                        p: 4,
+
+                                                                        textAlign:
+                                                                            "center",
+
+                                                                        background:
+                                                                            "#F5F3FF",
+
+                                                                        border:
+                                                                            "1px solid #DDD6FE",
+
+                                                                        borderRadius:
+                                                                            3
+                                                                    }}
+                                                                >
+
+                                                                    <ChangeCircle
+                                                                        sx={{
+                                                                            fontSize:
+                                                                                48,
+
+                                                                            color:
+                                                                                "#7C3AED",
+
+                                                                            mb: 1
+                                                                        }}
+                                                                    />
+
+
+                                                                    <Typography
+                                                                        variant="h6"
+                                                                        fontWeight="bold"
+                                                                        sx={{
+                                                                            color:
+                                                                                "#5B21B6"
+                                                                        }}
+                                                                    >
+                                                                        {
+                                                                            cellsChangedCount
+                                                                        }
+                                                                        {" "}
+                                                                        cell(s)
+                                                                        changed
+                                                                    </Typography>
+
+
+                                                                    <Typography
+                                                                        variant="body2"
+                                                                        color="text.secondary"
+                                                                        sx={{
+                                                                            mt: 1,
+
+                                                                            maxWidth:
+                                                                                650,
+
+                                                                            mx:
+                                                                                "auto"
+                                                                        }}
+                                                                    >
+                                                                        The backend
+                                                                        returned
+                                                                        the cell
+                                                                        count,
+                                                                        but did
+                                                                        not return
+                                                                        the
+                                                                        individual
+                                                                        changed
+                                                                        cells.
+                                                                    </Typography>
+
+
+                                                                    <Typography
+                                                                        variant="body2"
+                                                                        sx={{
+                                                                            mt: 2,
+
+                                                                            color:
+                                                                                "#6D28D9",
+
+                                                                            fontWeight:
+                                                                                600
+                                                                        }}
+                                                                    >
+                                                                        To display
+                                                                        the exact
+                                                                        cells,
+                                                                        the backend
+                                                                        should
+                                                                        return
+                                                                        an array
+                                                                        such as
+                                                                        <strong>
+                                                                            {" "}
+                                                                            changed_cells
+                                                                        </strong>
+                                                                        {" "}
+                                                                        or
+                                                                        <strong>
+                                                                            {" "}
+                                                                            cell_changes
+                                                                        </strong>.
+                                                                    </Typography>
+
+                                                                </Box>
+
+                                                            )
+
+                                                            : (
+
+                                                                <TableContainer
+                                                                    component={
+                                                                        Paper
+                                                                    }
+
+                                                                    elevation={0}
+
+                                                                    sx={{
+                                                                        border:
+                                                                            "1px solid #DDD6FE",
+
+                                                                        borderRadius:
+                                                                            2,
+
+                                                                        maxHeight:
+                                                                            500
+                                                                    }}
+                                                                >
+
+                                                                    <Table
+                                                                        stickyHeader
+                                                                        size="small"
+                                                                    >
+
+                                                                        <TableHead>
+
+                                                                            <TableRow>
+
+                                                                                {
+                                                                                    Object.keys(
+                                                                                        changedCells[0] ||
+                                                                                        {}
+                                                                                    ).map(
+                                                                                        (
+                                                                                            column
+                                                                                        ) => (
+
+                                                                                            <TableCell
+                                                                                                key={
+                                                                                                    column
+                                                                                                }
+
+                                                                                                sx={{
+                                                                                                    fontWeight:
+                                                                                                        "bold",
+
+                                                                                                    background:
+                                                                                                        "#F5F3FF",
+
+                                                                                                    color:
+                                                                                                        "#5B21B6"
+                                                                                                }}
+                                                                                            >
+                                                                                                {
+                                                                                                    column
+                                                                                                }
+                                                                                            </TableCell>
+
+                                                                                        )
+                                                                                    )
+                                                                                }
+
+                                                                            </TableRow>
+
+                                                                        </TableHead>
+
+
+                                                                        <TableBody>
+
+                                                                            {
+                                                                                changedCells.map(
+                                                                                    (
+                                                                                        cell,
+                                                                                        index
+                                                                                    ) => (
+
+                                                                                        <TableRow
+                                                                                            key={
+                                                                                                index
+                                                                                            }
+
+                                                                                            hover
+                                                                                        >
+
+                                                                                            {
+                                                                                                Object.keys(
+                                                                                                    changedCells[0] ||
+                                                                                                    {}
+                                                                                                ).map(
+                                                                                                    (
+                                                                                                        column
+                                                                                                    ) => (
+
+                                                                                                        <TableCell
+                                                                                                            key={
+                                                                                                                column
+                                                                                                            }
+                                                                                                        >
+                                                                                                            {
+                                                                                                                renderChangeValue(
+                                                                                                                    cell?.[
+                                                                                                                        column
+                                                                                                                    ]
+                                                                                                                )
+                                                                                                            }
+                                                                                                        </TableCell>
+
+                                                                                                    )
+                                                                                                )
+                                                                                            }
+
+                                                                                        </TableRow>
+
+                                                                                    )
+                                                                                )
+                                                                            }
+
+                                                                        </TableBody>
+
+                                                                    </Table>
+
+                                                                </TableContainer>
+
+                                                            )
+                                                    }
+
+                                                </Box>
+
                                             )
                                         }
-                                    </Typography>
-
-                                </Paper>
-
-                            </Grid>
-
-                        </Grid>
 
 
-                        {Array.isArray(
-                            changes.inserted_rows
-                        ) &&
-                        changes.inserted_rows.length > 0 && (
+                                        {/* ================================================= */}
+                                        {/* INSERTED / UPDATED / DELETED ROWS */}
+                                        {/* ================================================= */}
 
-                            <Box
-                                sx={{
-                                    mt: 4
-                                }}
-                            >
+                                        {
+                                            (
+                                                selectedChange ===
+                                                    "inserted" ||
 
-                                <Typography
-                                    variant="h6"
-                                    fontWeight="bold"
-                                    sx={{
-                                        mb: 1
-                                    }}
-                                >
-                                    Inserted Rows
-                                </Typography>
+                                                selectedChange ===
+                                                    "updated" ||
 
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                >
-                                    {
-                                        changes
-                                            .inserted_rows
-                                            .length
-                                    } rows inserted.
-                                </Typography>
+                                                selectedChange ===
+                                                    "deleted"
+                                            ) && (
 
-                            </Box>
+                                                selectedChangeRows.length ===
+                                                    0
 
-                        )}
+                                                    ? (
 
+                                                        <Box
+                                                            sx={{
+                                                                p: 4,
 
-                        {Array.isArray(
-                            changes.updated_rows
-                        ) &&
-                        changes.updated_rows.length > 0 && (
+                                                                textAlign:
+                                                                    "center",
 
-                            <Box
-                                sx={{
-                                    mt: 3
-                                }}
-                            >
+                                                                background:
+                                                                    "#F8FAFC",
 
-                                <Typography
-                                    variant="h6"
-                                    fontWeight="bold"
-                                    sx={{
-                                        mb: 1
-                                    }}
-                                >
-                                    Updated Rows
-                                </Typography>
+                                                                borderRadius:
+                                                                    2
+                                                            }}
+                                                        >
 
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                >
-                                    {
-                                        changes
-                                            .updated_rows
-                                            .length
-                                    } rows updated.
-                                </Typography>
+                                                            <Typography
+                                                                color="text.secondary"
+                                                            >
+                                                                No row-level
+                                                                details were
+                                                                returned by
+                                                                the backend
+                                                                for this
+                                                                operation.
+                                                            </Typography>
 
-                            </Box>
+                                                        </Box>
 
-                        )}
+                                                    )
 
+                                                    : (
 
-                        {Array.isArray(
-                            changes.deleted_rows
-                        ) &&
-                        changes.deleted_rows.length > 0 && (
+                                                        <TableContainer
+                                                            component={
+                                                                Paper
+                                                            }
 
-                            <Box
-                                sx={{
-                                    mt: 3
-                                }}
-                            >
+                                                            elevation={0}
 
-                                <Typography
-                                    variant="h6"
-                                    fontWeight="bold"
-                                    sx={{
-                                        mb: 1
-                                    }}
-                                >
-                                    Deleted Rows
-                                </Typography>
+                                                            sx={{
+                                                                border:
+                                                                    "1px solid #E2E8F0",
 
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                >
-                                    {
-                                        changes
-                                            .deleted_rows
-                                            .length
-                                    } rows deleted.
-                                </Typography>
+                                                                borderRadius:
+                                                                    2,
 
-                            </Box>
+                                                                maxHeight:
+                                                                    500
+                                                            }}
+                                                        >
 
-                        )}
+                                                            <Table
+                                                                stickyHeader
+                                                                size="small"
+                                                            >
 
+                                                                <TableHead>
 
-                        {Array.isArray(
-                            changes.added_columns
-                        ) &&
-                        changes.added_columns.length > 0 && (
+                                                                    <TableRow>
 
-                            <Box
-                                sx={{
-                                    mt: 3
-                                }}
-                            >
+                                                                        {
+                                                                            Object.keys(
+                                                                                selectedChangeRows[0] ||
+                                                                                {}
+                                                                            ).map(
+                                                                                (
+                                                                                    column
+                                                                                ) => (
 
-                                <Typography
-                                    variant="h6"
-                                    fontWeight="bold"
-                                    sx={{
-                                        mb: 1
-                                    }}
-                                >
-                                    Added Columns
-                                </Typography>
+                                                                                    <TableCell
+                                                                                        key={
+                                                                                            column
+                                                                                        }
 
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                >
-                                    {
-                                        formatChangeColumns(
-                                            changes.added_columns
-                                        )
-                                    }
-                                </Typography>
+                                                                                        sx={{
+                                                                                            fontWeight:
+                                                                                                "bold",
 
-                            </Box>
+                                                                                            background:
+                                                                                                "#F8FAFC"
+                                                                                        }}
+                                                                                    >
+                                                                                        {
+                                                                                            column
+                                                                                        }
+                                                                                    </TableCell>
 
-                        )}
+                                                                                )
+                                                                            )
+                                                                        }
+
+                                                                    </TableRow>
+
+                                                                </TableHead>
 
 
-                        {Array.isArray(
-                            changes.removed_columns
-                        ) &&
-                        changes.removed_columns.length > 0 && (
+                                                                <TableBody>
 
-                            <Box
-                                sx={{
-                                    mt: 3
-                                }}
-                            >
+                                                                    {
+                                                                        selectedChangeRows.map(
+                                                                            (
+                                                                                row,
+                                                                                rowIndex
+                                                                            ) => (
 
-                                <Typography
-                                    variant="h6"
-                                    fontWeight="bold"
-                                    sx={{
-                                        mb: 1
-                                    }}
-                                >
-                                    Removed Columns
-                                </Typography>
+                                                                                <TableRow
+                                                                                    key={
+                                                                                        rowIndex
+                                                                                    }
 
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                >
-                                    {
-                                        formatChangeColumns(
-                                            changes.removed_columns
-                                        )
-                                    }
-                                </Typography>
+                                                                                    hover
+                                                                                >
 
-                            </Box>
+                                                                                    {
+                                                                                        Object.keys(
+                                                                                            selectedChangeRows[0] ||
+                                                                                            {}
+                                                                                        ).map(
+                                                                                            (
+                                                                                                column
+                                                                                            ) => (
 
-                        )}
+                                                                                                <TableCell
+                                                                                                    key={
+                                                                                                        column
+                                                                                                    }
+                                                                                                >
+                                                                                                    {
+                                                                                                        renderChangeValue(
+                                                                                                            row?.[
+                                                                                                                column
+                                                                                                            ]
+                                                                                                        )
+                                                                                                    }
+                                                                                                </TableCell>
 
-                    </Paper>
+                                                                                            )
+                                                                                        )
+                                                                                    }
 
-                )}
+                                                                                </TableRow>
+
+                                                                            )
+                                                                        )
+                                                                    }
+
+                                                                </TableBody>
+
+                                                            </Table>
+
+                                                        </TableContainer>
+
+                                                    )
+                                            )
+                                        }
+
+                                    </Paper>
+
+                                )
+                            }
+
+                        </Paper>
+
+                    )
+                }
 
 
                 {/* ================================================= */}

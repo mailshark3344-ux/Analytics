@@ -179,22 +179,6 @@ def list_datasets():
 
 # ============================================================
 # UPLOAD NEW DATASET
-#
-# Browser
-#    ↓
-# FastAPI
-#    ↓
-# MinIO
-#    ↓
-# file_reader.py
-#    ↓
-# SQL / CSV / Excel parser
-#    ↓
-# Pandas
-#    ↓
-# Analysis
-#    ↓
-# JSON
 # ============================================================
 
 @app.post("/upload")
@@ -531,10 +515,6 @@ def analyze_dataset(
 
 # ============================================================
 # BACKWARD COMPATIBILITY
-#
-# Old frontend:
-#
-# /csv-analysis/Details.csv
 # ============================================================
 
 @app.get(
@@ -941,6 +921,58 @@ def json_safe_value(
 
 
 # ============================================================
+# RECURSIVE JSON SAFE CONVERSION
+# ============================================================
+
+def make_json_safe(
+    value
+):
+    """
+    Recursively convert SQL metadata into JSON-safe
+    Python values.
+
+    This is especially important for changed_cells,
+    primary_key, row, old_value and new_value.
+    """
+
+    if isinstance(
+        value,
+        dict
+    ):
+
+        return {
+            str(key): make_json_safe(
+                item
+            )
+            for key, item in value.items()
+        }
+
+    if isinstance(
+        value,
+        list
+    ):
+
+        return [
+            make_json_safe(item)
+            for item in value
+        ]
+
+    if isinstance(
+        value,
+        tuple
+    ):
+
+        return [
+            make_json_safe(item)
+            for item in value
+        ]
+
+    return json_safe_value(
+        value
+    )
+
+
+# ============================================================
 # DATAFRAME → JSON
 # ============================================================
 
@@ -1108,16 +1140,34 @@ def create_sql_change_information(
     """
     Create dashboard-friendly SQL change information.
 
-    Supports parser output using either:
+    IMPORTANT:
 
-        "changes": {...}
+    The SQL parser already calculates the actual
+    cell-level changes in:
 
-    or:
+        sql_metadata["changed_cells"]
 
-        "set": {...}
+    Example:
 
-    This makes the API compatible with both versions
-    of sql_parser.py.
+        {
+            "table": "users",
+            "column": "status",
+            "old_value": 1,
+            "new_value": 0,
+            "row": {
+                "user_id": 2,
+                "status": 1
+            },
+            "primary_key": {
+                "user_id": 2
+            }
+        }
+
+    This function must NOT calculate Cells Changed
+    merely from the number of columns in UPDATE
+    statements.
+
+    It uses the parser's actual changed_cells list.
     """
 
     sql_metadata = df.attrs.get(
@@ -1133,7 +1183,7 @@ def create_sql_change_information(
         sql_metadata = {}
 
     # ========================================================
-    # GET SQL STATEMENTS
+    # GET SQL DATA
     # ========================================================
 
     inserts = sql_metadata.get(
@@ -1178,137 +1228,342 @@ def create_sql_change_information(
 
     # ========================================================
     # INSERTED ROWS
+    #
+    # Prefer the parser's reconstructed inserted_rows.
+    # Fall back to extracting rows from INSERT statements.
     # ========================================================
 
-    inserted_rows = []
+    inserted_rows = sql_metadata.get(
+        "inserted_rows",
+        []
+    )
 
-    for insert in inserts:
+    if not isinstance(
+        inserted_rows,
+        list
+    ):
 
-        if not isinstance(
-            insert,
-            dict
-        ):
+        inserted_rows = []
 
-            continue
+    # --------------------------------------------------------
+    # Fallback
+    # --------------------------------------------------------
 
-        rows = insert.get(
-            "rows",
-            []
-        )
+    if not inserted_rows:
 
-        if not isinstance(
-            rows,
-            list
-        ):
+        for insert in inserts:
 
-            continue
-
-        for row in rows:
-
-            if isinstance(
-                row,
+            if not isinstance(
+                insert,
                 dict
             ):
 
-                inserted_rows.append(
-                    row
-                )
+                continue
+
+            rows = insert.get(
+                "rows",
+                []
+            )
+
+            if not isinstance(
+                rows,
+                list
+            ):
+
+                continue
+
+            for row in rows:
+
+                if isinstance(
+                    row,
+                    dict
+                ):
+
+                    inserted_rows.append({
+
+                        "table": insert.get(
+                            "table"
+                        ),
+
+                        **row
+
+                    })
 
     # ========================================================
     # UPDATED ROWS
+    #
+    # Prefer the parser's reconstructed updated_rows.
     # ========================================================
 
-    updated_rows = []
+    updated_rows = sql_metadata.get(
+        "updated_rows",
+        []
+    )
 
-    cells_changed = 0
+    if not isinstance(
+        updated_rows,
+        list
+    ):
 
-    for update in updates:
+        updated_rows = []
 
-        if not isinstance(
-            update,
-            dict
-        ):
+    # --------------------------------------------------------
+    # Fallback for older parser
+    # --------------------------------------------------------
 
-            continue
+    if not updated_rows:
 
-        # ----------------------------------------------------
-        # Normalize parser output
-        #
-        # Current parser:
-        #
-        # "changes": {...}
-        #
-        # Older/new parser:
-        #
-        # "set": {...}
-        # ----------------------------------------------------
+        for update in updates:
 
-        changes = update.get(
-            "changes"
-        )
+            if not isinstance(
+                update,
+                dict
+            ):
 
-        if changes is None:
+                continue
 
             changes = update.get(
-                "set",
-                {}
+                "changes"
             )
 
-        if not isinstance(
-            changes,
-            dict
-        ):
+            if changes is None:
 
-            changes = {}
+                changes = update.get(
+                    "set",
+                    {}
+                )
 
-        # ----------------------------------------------------
-        # Create normalized update object
-        # ----------------------------------------------------
+            if not isinstance(
+                changes,
+                dict
+            ):
 
-        normalized_update = {
+                changes = {}
 
-            "table": update.get(
-                "table"
-            ),
+            normalized_update = {
 
-            "changes": changes,
+                "table": update.get(
+                    "table"
+                ),
 
-            "set": changes,
+                "changes": changes,
 
-            "where": update.get(
-                "where"
+                "set": changes,
+
+                "where": update.get(
+                    "where"
+                ),
+
+                "where_conditions":
+                    update.get(
+                        "where_conditions",
+                        {}
+                    )
+
+            }
+
+            updated_rows.append(
+                normalized_update
             )
-
-        }
-
-        updated_rows.append(
-            normalized_update
-        )
-
-        # ----------------------------------------------------
-        # Count changed cells
-        # ----------------------------------------------------
-
-        cells_changed += len(
-            changes
-        )
 
     # ========================================================
     # DELETED ROWS
+    #
+    # Prefer parser's reconstructed deleted_rows.
     # ========================================================
 
-    deleted_rows = []
+    deleted_rows = sql_metadata.get(
+        "deleted_rows",
+        []
+    )
 
-    for delete in deletes:
+    if not isinstance(
+        deleted_rows,
+        list
+    ):
 
-        if isinstance(
-            delete,
-            dict
-        ):
+        deleted_rows = []
 
-            deleted_rows.append(
-                delete
-            )
+    # --------------------------------------------------------
+    # Fallback for older parser
+    # --------------------------------------------------------
+
+    if not deleted_rows:
+
+        for delete in deletes:
+
+            if isinstance(
+                delete,
+                dict
+            ):
+
+                deleted_rows.append(
+                    delete
+                )
+
+    # ========================================================
+    # ACTUAL CHANGED CELLS
+    #
+    # THIS IS THE IMPORTANT FIX.
+    #
+    # The parser's build_change_details() creates:
+    #
+    #     sql_metadata["changed_cells"]
+    #
+    # We expose that array directly to the frontend.
+    # ========================================================
+
+    changed_cells = sql_metadata.get(
+        "changed_cells",
+        []
+    )
+
+    # --------------------------------------------------------
+    # Support camelCase if another component uses it.
+    # --------------------------------------------------------
+
+    if not changed_cells:
+
+        changed_cells = sql_metadata.get(
+            "changedCells",
+            []
+        )
+
+    if not isinstance(
+        changed_cells,
+        list
+    ):
+
+        changed_cells = []
+
+    # ========================================================
+    # CELLS CHANGED COUNT
+    # ========================================================
+
+    # --------------------------------------------------------
+    # Best source:
+    #
+    # actual number of changed cell objects.
+    # --------------------------------------------------------
+
+    cells_changed = len(
+        changed_cells
+    )
+
+    # --------------------------------------------------------
+    # If changed_cells isn't available, use parser's
+    # cells_changed value.
+    #
+    # This keeps backward compatibility.
+    # --------------------------------------------------------
+
+    if cells_changed == 0:
+
+        parser_cells_changed = sql_metadata.get(
+            "cells_changed"
+        )
+
+        if parser_cells_changed is not None:
+
+            try:
+
+                cells_changed = int(
+                    parser_cells_changed
+                )
+
+            except (
+                ValueError,
+                TypeError
+            ):
+
+                cells_changed = 0
+
+    # ========================================================
+    # INSERT / UPDATE / DELETE COUNTS
+    # ========================================================
+
+    # --------------------------------------------------------
+    # Prefer parser's final reconstructed counts.
+    # --------------------------------------------------------
+
+    inserted_count = sql_metadata.get(
+        "inserted"
+    )
+
+    updated_count = sql_metadata.get(
+        "updated"
+    )
+
+    deleted_count = sql_metadata.get(
+        "deleted"
+    )
+
+    # --------------------------------------------------------
+    # Fallback to reconstructed lists.
+    # --------------------------------------------------------
+
+    if inserted_count is None:
+
+        inserted_count = len(
+            inserted_rows
+        )
+
+    if updated_count is None:
+
+        updated_count = len(
+            updated_rows
+        )
+
+    if deleted_count is None:
+
+        deleted_count = len(
+            deleted_rows
+        )
+
+    try:
+
+        inserted_count = int(
+            inserted_count
+        )
+
+    except (
+        ValueError,
+        TypeError
+    ):
+
+        inserted_count = len(
+            inserted_rows
+        )
+
+    try:
+
+        updated_count = int(
+            updated_count
+        )
+
+    except (
+        ValueError,
+        TypeError
+    ):
+
+        updated_count = len(
+            updated_rows
+        )
+
+    try:
+
+        deleted_count = int(
+            deleted_count
+        )
+
+    except (
+        ValueError,
+        TypeError
+    ):
+
+        deleted_count = len(
+            deleted_rows
+        )
 
     # ========================================================
     # COLUMN CHANGES
@@ -1339,46 +1594,116 @@ def create_sql_change_information(
         removed_columns = []
 
     # ========================================================
+    # MAKE EVERYTHING JSON SAFE
+    # ========================================================
+
+    inserted_rows = make_json_safe(
+        inserted_rows
+    )
+
+    updated_rows = make_json_safe(
+        updated_rows
+    )
+
+    deleted_rows = make_json_safe(
+        deleted_rows
+    )
+
+    changed_cells = make_json_safe(
+        changed_cells
+    )
+
+    added_columns = make_json_safe(
+        added_columns
+    )
+
+    removed_columns = make_json_safe(
+        removed_columns
+    )
+
+    # ========================================================
+    # DEBUG LOGGING
+    # ========================================================
+
+    print("-" * 60)
+    print("SQL CHANGE INFORMATION")
+
+    print(
+        "Inserted:",
+        inserted_count
+    )
+
+    print(
+        "Updated:",
+        updated_count
+    )
+
+    print(
+        "Deleted:",
+        deleted_count
+    )
+
+    print(
+        "Cells changed:",
+        cells_changed
+    )
+
+    print(
+        "Changed cell details:",
+        len(changed_cells)
+    )
+
+    print("-" * 60)
+
+    # ========================================================
     # RESULT
     # ========================================================
 
     return {
 
-        "inserted": len(
-            inserted_rows
-        ),
+        # ----------------------------------------------------
+        # KPI COUNTS
+        # ----------------------------------------------------
 
-        "updated": len(
-            updated_rows
-        ),
+        "inserted": inserted_count,
 
-        "deleted": len(
-            deleted_rows
-        ),
+        "updated": updated_count,
 
-        "cells_changed": int(
-            cells_changed
-        ),
+        "deleted": deleted_count,
 
-        "inserted_rows": (
-            inserted_rows
-        ),
+        "cells_changed": cells_changed,
 
-        "updated_rows": (
-            updated_rows
-        ),
+        # ----------------------------------------------------
+        # DETAIL DATA
+        # ----------------------------------------------------
 
-        "deleted_rows": (
-            deleted_rows
-        ),
+        "inserted_rows": inserted_rows,
 
-        "added_columns": (
-            added_columns
-        ),
+        "updated_rows": updated_rows,
 
-        "removed_columns": (
-            removed_columns
-        )
+        "deleted_rows": deleted_rows,
+
+        "changed_cells": changed_cells,
+
+        # ----------------------------------------------------
+        # Compatibility aliases
+        # ----------------------------------------------------
+
+        "insertedRows": inserted_rows,
+
+        "updatedRows": updated_rows,
+
+        "deletedRows": deleted_rows,
+
+        "changedCells": changed_cells,
+
+        # ----------------------------------------------------
+        # Schema changes
+        # ----------------------------------------------------
+
+        "added_columns": added_columns,
+
+        "removed_columns": removed_columns
 
     }
 
@@ -1544,6 +1869,10 @@ def create_analysis_response(
 
             sql_metadata = {}
 
+        # ----------------------------------------------------
+        # SQL STRUCTURE / STATEMENTS
+        # ----------------------------------------------------
+
         result["sql"] = {
 
             "tables": sql_metadata.get(
@@ -1585,6 +1914,12 @@ def create_analysis_response(
 
         # ----------------------------------------------------
         # SQL CHANGE SUMMARY
+        #
+        # This now includes:
+        #
+        #   changed_cells
+        #
+        # so React can display the exact cells.
         # ----------------------------------------------------
 
         result["changes"] = (
