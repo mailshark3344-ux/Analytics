@@ -1,4 +1,7 @@
-import React, { useRef, useState } from "react";
+import React, {
+    useRef,
+    useState
+} from "react";
 
 import {
     Button,
@@ -13,20 +16,27 @@ function Upload({
     setColumns,
     setDatasetData,
     onUploadComplete,
-    onDatasetLoaded
+    onDatasetLoaded,
+    onRefreshDatasets
 }) {
 
-    const fileInputRef = useRef(null);
+    const fileInputRef =
+        useRef(null);
 
-    const [fileName, setFileName] = useState("");
+    const [fileName, setFileName] =
+        useState("");
 
-    const [loading, setLoading] = useState(false);
+    const [loading, setLoading] =
+        useState(false);
 
-    const [successOpen, setSuccessOpen] = useState(false);
+    const [successOpen, setSuccessOpen] =
+        useState(false);
 
-    const [errorOpen, setErrorOpen] = useState(false);
+    const [errorOpen, setErrorOpen] =
+        useState(false);
 
-    const [errorMessage, setErrorMessage] = useState("");
+    const [errorMessage, setErrorMessage] =
+        useState("");
 
 
     // ============================================================
@@ -36,8 +46,11 @@ function Upload({
     const handleButtonClick = () => {
 
         if (loading) {
+
             return;
+
         }
+
 
         fileInputRef.current?.click();
 
@@ -48,11 +61,18 @@ function Upload({
     // SHOW ERROR
     // ============================================================
 
-    const showError = (message) => {
+    const showError = (
+        message
+    ) => {
 
-        setErrorMessage(message);
+        setErrorMessage(
+            message ||
+            "Upload failed."
+        );
 
-        setErrorOpen(true);
+        setErrorOpen(
+            true
+        );
 
     };
 
@@ -63,482 +83,650 @@ function Upload({
 
     const resetFileInput = () => {
 
-        if (fileInputRef.current) {
+        if (
+            fileInputRef.current
+        ) {
 
-            fileInputRef.current.value = "";
+            fileInputRef.current.value =
+                "";
 
         }
 
     };
+
+
+    // ============================================================
+    // BACKEND ERROR
+    // ============================================================
+
+    const getBackendError =
+        async (
+            response
+        ) => {
+
+            try {
+
+                const text =
+                    await response.text();
+
+
+                if (!text) {
+
+                    return `Upload failed (${response.status})`;
+
+                }
+
+
+                try {
+
+                    const json =
+                        JSON.parse(
+                            text
+                        );
+
+
+                    if (
+                        json.detail
+                    ) {
+
+                        if (
+                            typeof json.detail ===
+                            "string"
+                        ) {
+
+                            return json.detail;
+
+                        }
+
+
+                        return JSON.stringify(
+                            json.detail
+                        );
+
+                    }
+
+
+                    if (
+                        json.message
+                    ) {
+
+                        return json.message;
+
+                    }
+
+
+                    return text;
+
+                }
+                catch {
+
+                    return text;
+
+                }
+
+            }
+            catch {
+
+                return `Upload failed (${response.status})`;
+
+            }
+
+        };
 
 
     // ============================================================
     // FILE SELECTED
     // ============================================================
 
-    const handleFileChange = async (event) => {
+    const handleFileChange =
+        async (
+            event
+        ) => {
 
-        const file =
-            event.target.files?.[0];
-
-
-        if (!file) {
-
-            return;
-
-        }
+            const file =
+                event.target.files?.[0];
 
 
-        console.log(
-            "===================================="
-        );
+            if (!file) {
 
-        console.log(
-            "FILE SELECTED"
-        );
+                return;
 
-        console.log(
-            "Name:",
-            file.name
-        );
-
-        console.log(
-            "Size:",
-            file.size
-        );
-
-        console.log(
-            "Type:",
-            file.type
-        );
-
-        console.log(
-            "===================================="
-        );
-
-
-        // ========================================================
-        // VALIDATE FILE EXTENSION
-        // ========================================================
-
-        const lowerName =
-            file.name.toLowerCase();
-
-
-        const allowedExtensions = [
-            ".csv",
-            ".xlsx",
-            ".xls"
-        ];
-
-
-        const validExtension =
-            allowedExtensions.some(
-                (extension) =>
-                    lowerName.endsWith(extension)
-            );
-
-
-        if (!validExtension) {
-
-            showError(
-                "Please select a CSV, XLSX or XLS file."
-            );
-
-            resetFileInput();
-
-            return;
-
-        }
-
-
-        // ========================================================
-        // VALIDATE EMPTY FILE
-        // ========================================================
-
-        if (file.size === 0) {
-
-            showError(
-                "The selected file is empty."
-            );
-
-            resetFileInput();
-
-            return;
-
-        }
-
-
-        // ========================================================
-        // SHOW SELECTED FILE NAME
-        // ========================================================
-
-        setFileName(
-            file.name
-        );
-
-        setLoading(true);
-
-
-        try {
-
-            // ====================================================
-            // CREATE FORM DATA
-            // ====================================================
-
-            const formData =
-                new FormData();
-
-
-            formData.append(
-                "file",
-                file
-            );
+            }
 
 
             console.log(
-                "Sending file to FastAPI..."
+                "===================================="
+            );
+
+            console.log(
+                "FILE SELECTED:",
+                file.name
+            );
+
+            console.log(
+                "SIZE:",
+                file.size
+            );
+
+            console.log(
+                "TYPE:",
+                file.type
+            );
+
+            console.log(
+                "===================================="
             );
 
 
             // ====================================================
-            // SEND TO FASTAPI
+            // FILE NAME
             // ====================================================
 
-            const response =
-                await fetch(
-                    "http://127.0.0.1:8000/upload",
-                    {
-                        method: "POST",
-                        body: formData
-                    }
+            const lowerName =
+                file.name
+                    .toLowerCase()
+                    .trim();
+
+
+            // ====================================================
+            // SUPPORTED EXTENSIONS
+            // ====================================================
+
+            const allowedExtensions = [
+
+                ".csv",
+                ".xlsx",
+                ".xls",
+                ".sql"
+
+            ];
+
+
+            const validExtension =
+                allowedExtensions.some(
+                    (
+                        extension
+                    ) =>
+                        lowerName.endsWith(
+                            extension
+                        )
                 );
 
 
-            console.log(
-                "FastAPI status:",
-                response.status
-            );
+            if (!validExtension) {
 
-
-            // ====================================================
-            // READ RESPONSE
-            // ====================================================
-
-            const responseText =
-                await response.text();
-
-
-            console.log(
-                "FastAPI response:",
-                responseText
-            );
-
-
-            // ====================================================
-            // BACKEND ERROR
-            // ====================================================
-
-            if (!response.ok) {
-
-                let message =
-                    `Upload failed (${response.status})`;
-
-
-                try {
-
-                    const errorData =
-                        JSON.parse(
-                            responseText
-                        );
-
-
-                    if (errorData.detail) {
-
-                        message =
-                            errorData.detail;
-
-                    }
-
-                }
-                catch {
-
-                    if (responseText) {
-
-                        message =
-                            responseText;
-
-                    }
-
-                }
-
-
-                throw new Error(
-                    message
+                showError(
+                    "Please select a CSV, XLSX, XLS or SQL file."
                 );
+
+                resetFileInput();
+
+                return;
 
             }
 
 
             // ====================================================
-            // PARSE JSON
+            // FILE TYPE
             // ====================================================
 
-            let analysis;
+            const isSQL =
+                lowerName.endsWith(
+                    ".sql"
+                );
+
+            const isCSV =
+                lowerName.endsWith(
+                    ".csv"
+                );
+
+            const isExcel =
+                lowerName.endsWith(
+                    ".xlsx"
+                ) ||
+                lowerName.endsWith(
+                    ".xls"
+                );
+
+
+            // ====================================================
+            // EMPTY FILE
+            // ====================================================
+
+            if (
+                file.size === 0
+            ) {
+
+                showError(
+                    "The selected file is empty."
+                );
+
+                resetFileInput();
+
+                return;
+
+            }
+
+
+            setFileName(
+                file.name
+            );
+
+            setLoading(
+                true
+            );
 
 
             try {
 
-                analysis =
-                    JSON.parse(
-                        responseText
+                // ==================================================
+                // FORM DATA
+                // ==================================================
+
+                const formData =
+                    new FormData();
+
+
+                formData.append(
+                    "file",
+                    file
+                );
+
+
+                console.log(
+                    "Uploading:",
+                    file.name
+                );
+
+
+                // ==================================================
+                // UPLOAD
+                // ==================================================
+
+                const response =
+                    await fetch(
+                        "http://127.0.0.1:8000/upload",
+                        {
+                            method: "POST",
+                            body: formData
+                        }
                     );
 
-            }
-            catch {
 
-                throw new Error(
-                    "FastAPI returned invalid JSON."
+                console.log(
+                    "FastAPI status:",
+                    response.status
                 );
 
-            }
+
+                // ==================================================
+                // ERROR
+                // ==================================================
+
+                if (
+                    !response.ok
+                ) {
+
+                    const message =
+                        await getBackendError(
+                            response
+                        );
 
 
-            console.log(
-                "Upload analysis:",
-                analysis
-            );
+                    throw new Error(
+                        message
+                    );
+
+                }
 
 
-            // ====================================================
-            // VALIDATE FILENAME
-            // ====================================================
+                // ==================================================
+                // JSON
+                // ==================================================
 
-            const uploadedFilename =
-                analysis.filename ||
-                file.name;
+                let analysis;
 
 
-            if (!uploadedFilename) {
+                try {
 
-                throw new Error(
-                    "FastAPI did not return a dataset filename."
-                );
+                    analysis =
+                        await response.json();
 
-            }
+                }
+                catch {
 
+                    throw new Error(
+                        "FastAPI returned invalid JSON."
+                    );
 
-            console.log(
-                "Active dataset:",
-                uploadedFilename
-            );
-
-
-            // ====================================================
-            // VALIDATE COLUMNS
-            // ====================================================
-
-            const backendColumns =
-                Array.isArray(
-                    analysis.columns
-                )
-                    ? analysis.columns
-                    : [];
+                }
 
 
-            if (
-                backendColumns.length === 0
-            ) {
+                if (
+                    !analysis ||
+                    typeof analysis !==
+                    "object"
+                ) {
 
-                throw new Error(
-                    "No columns were detected in the uploaded file."
-                );
+                    throw new Error(
+                        "FastAPI returned an invalid analysis response."
+                    );
 
-            }
-
-
-            // ====================================================
-            // VALIDATE DATA
-            // ====================================================
-
-            const backendData =
-                Array.isArray(
-                    analysis.data
-                )
-                    ? analysis.data
-                    : [];
+                }
 
 
-            if (
-                backendData.length === 0
-            ) {
+                // ==================================================
+                // FILENAME
+                // ==================================================
 
-                throw new Error(
-                    "The uploaded file contains no readable rows."
-                );
-
-            }
-
-
-            // ====================================================
-            // UPDATE COLUMNS
-            // ====================================================
-
-            if (setColumns) {
-
-                setColumns(
-                    backendColumns
-                );
-
-            }
+                const uploadedFilename =
+                    analysis.filename ||
+                    analysis.name ||
+                    file.name;
 
 
-            // ====================================================
-            // UPDATE DATA
-            // ====================================================
+                if (
+                    !uploadedFilename
+                ) {
 
-            if (setDatasetData) {
+                    throw new Error(
+                        "FastAPI did not return a dataset filename."
+                    );
 
-                setDatasetData(
-                    backendData
-                );
-
-            }
+                }
 
 
-            // ====================================================
-            // SEND COMPLETE ANALYSIS TO DASHBOARD
-            //
-            // THIS IS WHAT UPDATES:
-            //
-            // Current Dataset
-            // Dataset Name
-            // Rows
-            // Columns
-            // Charts
-            // ====================================================
+                // ==================================================
+                // COLUMNS
+                // ==================================================
 
-            if (onDatasetLoaded) {
+                const backendColumns =
+                    Array.isArray(
+                        analysis.columns
+                    )
+                        ? analysis.columns
+                        : [];
 
-                onDatasetLoaded({
+
+                // ==================================================
+                // DATA
+                // ==================================================
+
+                const backendData =
+                    Array.isArray(
+                        analysis.data
+                    )
+                        ? analysis.data
+                        : [];
+
+
+                // ==================================================
+                // CSV / EXCEL VALIDATION
+                // ==================================================
+
+                if (
+                    !isSQL &&
+                    backendData.length === 0
+                ) {
+
+                    throw new Error(
+                        "The uploaded file contains no readable rows."
+                    );
+
+                }
+
+
+                // ==================================================
+                // SQL VALIDATION
+                // ==================================================
+
+                if (
+                    isSQL &&
+                    backendColumns.length === 0
+                ) {
+
+                    const sql =
+                        analysis.sql ||
+                        {};
+
+                    const tables =
+                        Array.isArray(
+                            sql.tables
+                        )
+                            ? sql.tables
+                            : [];
+
+                    const changes =
+                        analysis.changes ||
+                        {};
+
+                    const hasSQLInformation =
+                        tables.length > 0 ||
+                        Object.keys(
+                            changes
+                        ).length > 0 ||
+                        Object.keys(
+                            sql
+                        ).length > 0 ||
+                        backendData.length > 0;
+
+
+                    if (
+                        !hasSQLInformation
+                    ) {
+
+                        throw new Error(
+                            "The SQL file was uploaded, but no tables, columns, rows or SQL changes could be detected."
+                        );
+
+                    }
+
+                }
+
+
+                // ==================================================
+                // SOURCE TYPE
+                // ==================================================
+
+                const sourceType =
+                    analysis.source_type ||
+                    (
+                        isSQL
+                            ? "sql"
+                            : isCSV
+                                ? "csv"
+                                : "excel"
+                    );
+
+
+                // ==================================================
+                // CREATE COMPLETE DATASET OBJECT
+                // ==================================================
+
+                const datasetResult = {
 
                     ...analysis,
 
-                    // Always make sure filename exists
                     filename:
-                        uploadedFilename
+                        uploadedFilename,
 
-                });
+                    name:
+                        uploadedFilename,
+
+                    source_type:
+                        sourceType,
+
+                    data:
+                        backendData,
+
+                    columns:
+                        backendColumns
+
+                };
+
+
+                console.log(
+                    "===================================="
+                );
+
+                console.log(
+                    "UPLOAD SUCCESS"
+                );
+
+                console.log(
+                    "Dataset:",
+                    uploadedFilename
+                );
+
+                console.log(
+                    "Rows:",
+                    analysis.rows ??
+                    backendData.length
+                );
+
+                console.log(
+                    "Columns:",
+                    analysis.columns_count ??
+                    backendColumns.length
+                );
+
+                console.log(
+                    "===================================="
+                );
+
+
+                // ==================================================
+                // IMPORTANT
+                //
+                // DO NOT DO:
+                //
+                // setColumns(...)
+                // setDatasetData(...)
+                //
+                // here.
+                //
+                // Dashboard's onDatasetLoaded is the ONE place
+                // responsible for updating the active dataset.
+                // ==================================================
+
+                if (
+                    typeof onDatasetLoaded ===
+                    "function"
+                ) {
+
+                    onDatasetLoaded(
+                        datasetResult
+                    );
+
+                }
+
+
+                // ==================================================
+                // REFRESH MINIO LIST
+                //
+                // This ONLY updates the dropdown.
+                //
+                // DatasetSelector will NOT reload the dataset.
+                // ==================================================
+
+                if (
+                    typeof onRefreshDatasets ===
+                    "function"
+                ) {
+
+                    try {
+
+                        await onRefreshDatasets(
+                            uploadedFilename
+                        );
+
+                    }
+                    catch (
+                        refreshError
+                    ) {
+
+                        console.error(
+                            "MinIO refresh failed:",
+                            refreshError
+                        );
+
+                        // Upload remains successful.
+                    }
+
+                }
+
+
+                // ==================================================
+                // UPLOAD COMPLETE
+                //
+                // Do NOT use this to reset charts.
+                // ==================================================
+
+                if (
+                    typeof onUploadComplete ===
+                    "function"
+                ) {
+
+                    onUploadComplete(
+                        datasetResult
+                    );
+
+                }
+
+
+                setSuccessOpen(
+                    true
+                );
 
             }
-
-
-            // ====================================================
-            // DO NOT RESET DATASET HERE
-            //
-            // onDatasetLoaded() handles the dataset state.
-            //
-            // If onUploadComplete is only used for calculated
-            // fields/charts, you can keep it here.
-            // ====================================================
-
-            if (onUploadComplete) {
-
-                onUploadComplete();
-
-            }
-
-
-            // ====================================================
-            // SUCCESS LOG
-            // ====================================================
-
-            console.log(
-                "===================================="
-            );
-
-            console.log(
-                "UPLOAD SUCCESS"
-            );
-
-            console.log(
-                "Active Dataset:",
-                uploadedFilename
-            );
-
-            console.log(
-                "Rows:",
-                analysis.rows
-            );
-
-            console.log(
-                "Columns:",
-                analysis.columns_count
-            );
-
-            console.log(
-                "===================================="
-            );
-
-
-            // ====================================================
-            // SUCCESS MESSAGE
-            // ====================================================
-
-            setSuccessOpen(true);
-
-        }
-        catch (error) {
-
-            console.error(
-                "===================================="
-            );
-
-            console.error(
-                "UPLOAD ERROR"
-            );
-
-            console.error(
+            catch (
                 error
-            );
-
-            console.error(
-                "===================================="
-            );
-
-
-            // ====================================================
-            // CONNECTION ERROR
-            // ====================================================
-
-            if (
-                error instanceof TypeError
             ) {
 
-                showError(
-                    "Cannot connect to FastAPI. Make sure the backend is running at http://127.0.0.1:8000"
+                console.error(
+                    "===================================="
                 );
 
-            }
-            else {
-
-                showError(
-                    error.message ||
-                    "Upload failed."
+                console.error(
+                    "UPLOAD ERROR:",
+                    error
                 );
 
+                console.error(
+                    "===================================="
+                );
+
+
+                if (
+                    error instanceof TypeError
+                ) {
+
+                    showError(
+                        "Cannot connect to FastAPI. Make sure the backend is running at http://127.0.0.1:8000"
+                    );
+
+                }
+                else {
+
+                    showError(
+                        error?.message ||
+                        "Upload failed."
+                    );
+
+                }
+
+            }
+            finally {
+
+                setLoading(
+                    false
+                );
+
+                resetFileInput();
+
             }
 
-        }
-        finally {
-
-            setLoading(false);
-
-            resetFileInput();
-
-        }
-
-    };
+        };
 
 
     // ============================================================
@@ -549,17 +737,23 @@ function Upload({
 
         <>
 
-            {/* ================================================= */}
-            {/* HIDDEN FILE INPUT */}
-            {/* ================================================= */}
-
             <input
 
-                ref={fileInputRef}
+                ref={
+                    fileInputRef
+                }
 
                 type="file"
 
-                accept=".csv,.xlsx,.xls"
+                accept={[
+                    ".csv",
+                    ".xlsx",
+                    ".xls",
+                    ".sql",
+                    "text/csv",
+                    "application/sql",
+                    "text/plain"
+                ].join(",")}
 
                 style={{
                     display: "none"
@@ -572,10 +766,6 @@ function Upload({
             />
 
 
-            {/* ================================================= */}
-            {/* UPLOAD BUTTON */}
-            {/* ================================================= */}
-
             <Button
 
                 variant="contained"
@@ -584,7 +774,9 @@ function Upload({
                     <UploadFileIcon />
                 }
 
-                disabled={loading}
+                disabled={
+                    loading
+                }
 
                 onClick={
                     handleButtonClick
@@ -616,15 +808,11 @@ function Upload({
                 {
                     loading
                         ? "Uploading..."
-                        : "Upload CSV / Excel"
+                        : "Upload CSV / Excel / SQL"
                 }
 
             </Button>
 
-
-            {/* ================================================= */}
-            {/* SUCCESS MESSAGE */}
-            {/* ================================================= */}
 
             <Snackbar
 
@@ -637,7 +825,9 @@ function Upload({
                 }
 
                 onClose={() =>
-                    setSuccessOpen(false)
+                    setSuccessOpen(
+                        false
+                    )
                 }
 
             >
@@ -649,23 +839,20 @@ function Upload({
                     variant="filled"
 
                     onClose={() =>
-                        setSuccessOpen(false)
+                        setSuccessOpen(
+                            false
+                        )
                     }
 
                 >
 
                     {fileName}
-
                     {" uploaded successfully"}
 
                 </Alert>
 
             </Snackbar>
 
-
-            {/* ================================================= */}
-            {/* ERROR MESSAGE */}
-            {/* ================================================= */}
 
             <Snackbar
 
@@ -674,11 +861,13 @@ function Upload({
                 }
 
                 autoHideDuration={
-                    7000
+                    8000
                 }
 
                 onClose={() =>
-                    setErrorOpen(false)
+                    setErrorOpen(
+                        false
+                    )
                 }
 
             >
@@ -690,7 +879,9 @@ function Upload({
                     variant="filled"
 
                     onClose={() =>
-                        setErrorOpen(false)
+                        setErrorOpen(
+                            false
+                        )
                     }
 
                 >

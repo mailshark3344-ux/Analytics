@@ -108,12 +108,18 @@ def list_datasets():
             filename_lower = filename.lower()
 
             # ------------------------------------------------
-            # Only show supported datasets
+            # Supported files
             # ------------------------------------------------
 
             if not filename_lower.endswith(
-                (".csv", ".xlsx", ".xls")
+                (
+                    ".csv",
+                    ".xlsx",
+                    ".xls",
+                    ".sql"
+                )
             ):
+
                 continue
 
             datasets.append({
@@ -145,8 +151,11 @@ def list_datasets():
         )
 
         return {
+
             "bucket": bucket_name,
+
             "datasets": datasets
+
         }
 
     except Exception as e:
@@ -157,11 +166,14 @@ def list_datasets():
         )
 
         raise HTTPException(
+
             status_code=500,
+
             detail=(
                 "Unable to read datasets "
                 f"from MinIO: {str(e)}"
             )
+
         )
 
 
@@ -175,6 +187,8 @@ def list_datasets():
 # MinIO
 #    ↓
 # file_reader.py
+#    ↓
+# SQL / CSV / Excel parser
 #    ↓
 # Pandas
 #    ↓
@@ -212,7 +226,8 @@ async def upload_file(
         supported_extensions = (
             ".csv",
             ".xlsx",
-            ".xls"
+            ".xls",
+            ".sql"
         )
 
         if not filename_lower.endswith(
@@ -223,7 +238,7 @@ async def upload_file(
                 status_code=400,
                 detail=(
                     "Unsupported file format. "
-                    "Please upload CSV, XLSX or XLS."
+                    "Please upload CSV, XLSX, XLS or SQL."
                 )
             )
 
@@ -252,8 +267,6 @@ async def upload_file(
 
         # ====================================================
         # READ DATASET
-        #
-        # This now uses file_reader.py
         # ====================================================
 
         df = read_uploaded_file(
@@ -263,17 +276,10 @@ async def upload_file(
 
         # ====================================================
         # VALIDATE DATAFRAME
+        #
+        # SQL files may contain CREATE TABLE without INSERT.
+        # Therefore we only reject when there are no columns.
         # ====================================================
-
-        if df.empty:
-
-            raise HTTPException(
-                status_code=400,
-                detail=(
-                    "The uploaded dataset "
-                    "contains no data."
-                )
-            )
 
         if len(df.columns) == 0:
 
@@ -391,12 +397,21 @@ def analyze_dataset(
         filename_lower = filename.lower()
 
         if not filename_lower.endswith(
-            (".csv", ".xlsx", ".xls")
+            (
+                ".csv",
+                ".xlsx",
+                ".xls",
+                ".sql"
+            )
         ):
 
             raise HTTPException(
                 status_code=400,
-                detail="Unsupported dataset format"
+                detail=(
+                    "Unsupported dataset format. "
+                    "Supported formats: "
+                    "CSV, XLSX, XLS and SQL."
+                )
             )
 
         print(
@@ -451,8 +466,6 @@ def analyze_dataset(
 
         # ====================================================
         # READ DATASET
-        #
-        # This uses the same file_reader.py used by upload.
         # ====================================================
 
         df = read_uploaded_file(
@@ -463,13 +476,6 @@ def analyze_dataset(
         # ====================================================
         # VALIDATE DATASET
         # ====================================================
-
-        if df.empty:
-
-            raise HTTPException(
-                status_code=400,
-                detail="Dataset contains no data"
-            )
 
         if len(df.columns) == 0:
 
@@ -529,7 +535,6 @@ def analyze_dataset(
 # Old frontend:
 #
 # /csv-analysis/Details.csv
-#
 # ============================================================
 
 @app.get(
@@ -821,7 +826,9 @@ def get_column_information(
 # JSON SAFE VALUE
 # ============================================================
 
-def json_safe_value(value):
+def json_safe_value(
+    value
+):
 
     if value is None:
 
@@ -1092,6 +1099,291 @@ def create_categorical_summary(
 
 
 # ============================================================
+# CREATE SQL CHANGE INFORMATION
+# ============================================================
+
+def create_sql_change_information(
+    df: pd.DataFrame
+):
+    """
+    Create dashboard-friendly SQL change information.
+
+    Supports parser output using either:
+
+        "changes": {...}
+
+    or:
+
+        "set": {...}
+
+    This makes the API compatible with both versions
+    of sql_parser.py.
+    """
+
+    sql_metadata = df.attrs.get(
+        "sql_metadata",
+        {}
+    )
+
+    if not isinstance(
+        sql_metadata,
+        dict
+    ):
+
+        sql_metadata = {}
+
+    # ========================================================
+    # GET SQL STATEMENTS
+    # ========================================================
+
+    inserts = sql_metadata.get(
+        "inserts",
+        []
+    )
+
+    updates = sql_metadata.get(
+        "updates",
+        []
+    )
+
+    deletes = sql_metadata.get(
+        "deletes",
+        []
+    )
+
+    # ========================================================
+    # SAFETY
+    # ========================================================
+
+    if not isinstance(
+        inserts,
+        list
+    ):
+
+        inserts = []
+
+    if not isinstance(
+        updates,
+        list
+    ):
+
+        updates = []
+
+    if not isinstance(
+        deletes,
+        list
+    ):
+
+        deletes = []
+
+    # ========================================================
+    # INSERTED ROWS
+    # ========================================================
+
+    inserted_rows = []
+
+    for insert in inserts:
+
+        if not isinstance(
+            insert,
+            dict
+        ):
+
+            continue
+
+        rows = insert.get(
+            "rows",
+            []
+        )
+
+        if not isinstance(
+            rows,
+            list
+        ):
+
+            continue
+
+        for row in rows:
+
+            if isinstance(
+                row,
+                dict
+            ):
+
+                inserted_rows.append(
+                    row
+                )
+
+    # ========================================================
+    # UPDATED ROWS
+    # ========================================================
+
+    updated_rows = []
+
+    cells_changed = 0
+
+    for update in updates:
+
+        if not isinstance(
+            update,
+            dict
+        ):
+
+            continue
+
+        # ----------------------------------------------------
+        # Normalize parser output
+        #
+        # Current parser:
+        #
+        # "changes": {...}
+        #
+        # Older/new parser:
+        #
+        # "set": {...}
+        # ----------------------------------------------------
+
+        changes = update.get(
+            "changes"
+        )
+
+        if changes is None:
+
+            changes = update.get(
+                "set",
+                {}
+            )
+
+        if not isinstance(
+            changes,
+            dict
+        ):
+
+            changes = {}
+
+        # ----------------------------------------------------
+        # Create normalized update object
+        # ----------------------------------------------------
+
+        normalized_update = {
+
+            "table": update.get(
+                "table"
+            ),
+
+            "changes": changes,
+
+            "set": changes,
+
+            "where": update.get(
+                "where"
+            )
+
+        }
+
+        updated_rows.append(
+            normalized_update
+        )
+
+        # ----------------------------------------------------
+        # Count changed cells
+        # ----------------------------------------------------
+
+        cells_changed += len(
+            changes
+        )
+
+    # ========================================================
+    # DELETED ROWS
+    # ========================================================
+
+    deleted_rows = []
+
+    for delete in deletes:
+
+        if isinstance(
+            delete,
+            dict
+        ):
+
+            deleted_rows.append(
+                delete
+            )
+
+    # ========================================================
+    # COLUMN CHANGES
+    # ========================================================
+
+    added_columns = sql_metadata.get(
+        "added_columns",
+        []
+    )
+
+    removed_columns = sql_metadata.get(
+        "removed_columns",
+        []
+    )
+
+    if not isinstance(
+        added_columns,
+        list
+    ):
+
+        added_columns = []
+
+    if not isinstance(
+        removed_columns,
+        list
+    ):
+
+        removed_columns = []
+
+    # ========================================================
+    # RESULT
+    # ========================================================
+
+    return {
+
+        "inserted": len(
+            inserted_rows
+        ),
+
+        "updated": len(
+            updated_rows
+        ),
+
+        "deleted": len(
+            deleted_rows
+        ),
+
+        "cells_changed": int(
+            cells_changed
+        ),
+
+        "inserted_rows": (
+            inserted_rows
+        ),
+
+        "updated_rows": (
+            updated_rows
+        ),
+
+        "deleted_rows": (
+            deleted_rows
+        ),
+
+        "added_columns": (
+            added_columns
+        ),
+
+        "removed_columns": (
+            removed_columns
+        )
+
+    }
+
+
+# ============================================================
 # CREATE ANALYSIS RESPONSE
 # ============================================================
 
@@ -1147,12 +1439,44 @@ def create_analysis_response(
     )
 
     # ========================================================
-    # RESPONSE
+    # SOURCE TYPE
     # ========================================================
 
-    return {
+    source_type = df.attrs.get(
+        "source_type"
+    )
+
+    if not source_type:
+
+        filename_lower = filename.lower()
+
+        if filename_lower.endswith(".sql"):
+
+            source_type = "sql"
+
+        elif filename_lower.endswith(".csv"):
+
+            source_type = "csv"
+
+        elif filename_lower.endswith(
+            (".xlsx", ".xls")
+        ):
+
+            source_type = "excel"
+
+        else:
+
+            source_type = "unknown"
+
+    # ========================================================
+    # BASE RESPONSE
+    # ========================================================
+
+    result = {
 
         "filename": filename,
+
+        "source_type": source_type,
 
         "rows": int(
             len(df)
@@ -1197,3 +1521,76 @@ def create_analysis_response(
         )
 
     }
+
+    # ========================================================
+    # SQL ONLY
+    #
+    # CSV / Excel do NOT get SQL metadata.
+    # ========================================================
+
+    if source_type == "sql":
+
+        sql_metadata = (
+            df.attrs.get(
+                "sql_metadata",
+                {}
+            )
+        )
+
+        if not isinstance(
+            sql_metadata,
+            dict
+        ):
+
+            sql_metadata = {}
+
+        result["sql"] = {
+
+            "tables": sql_metadata.get(
+                "tables",
+                []
+            ),
+
+            "columns": sql_metadata.get(
+                "columns",
+                {}
+            ),
+
+            "primary_keys": sql_metadata.get(
+                "primary_keys",
+                {}
+            ),
+
+            "creates": sql_metadata.get(
+                "creates",
+                []
+            ),
+
+            "inserts": sql_metadata.get(
+                "inserts",
+                []
+            ),
+
+            "updates": sql_metadata.get(
+                "updates",
+                []
+            ),
+
+            "deletes": sql_metadata.get(
+                "deletes",
+                []
+            )
+
+        }
+
+        # ----------------------------------------------------
+        # SQL CHANGE SUMMARY
+        # ----------------------------------------------------
+
+        result["changes"] = (
+            create_sql_change_information(
+                df
+            )
+        )
+
+    return result

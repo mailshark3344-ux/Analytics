@@ -9,13 +9,13 @@ import {
 import Upload from "../Upload/Upload";
 import CalculatedFieldBuilder from "./CalculatedFieldBuilder";
 
-
 function Header({
     setColumns,
     setDatasetData,
     onCalculatedFieldCreate,
     onUploadComplete,
     onDatasetLoaded,
+    onUploadRefresh,
     columns = []
 }) {
 
@@ -78,6 +78,7 @@ function Header({
                         setDatasetData={setDatasetData}
                         onUploadComplete={onUploadComplete}
                         onDatasetLoaded={onDatasetLoaded}
+                        onRefreshDatasets={onUploadRefresh}
                     />
 
                 </div>
@@ -87,7 +88,7 @@ function Header({
         </AppBar>
 
     );
-}
 
+}
 
 export default Header;

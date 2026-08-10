@@ -1,4 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+    useCallback,
+    useEffect,
+    useRef,
+    useState
+} from "react";
 
 import {
     Box,
@@ -15,16 +20,22 @@ import {
 
 import RefreshIcon from "@mui/icons-material/Refresh";
 
-const API_URL = "http://127.0.0.1:8000";
 
-const AUTO_REFRESH_INTERVAL = 5000;
+const API_URL =
+    "http://127.0.0.1:8000";
+
+const AUTO_REFRESH_INTERVAL =
+    5000;
+
 
 function DatasetSelector({
     onDatasetLoaded,
-    refreshKey = 0
+    refreshKey = 0,
+    uploadedDatasetName = ""
 }) {
 
-    const [datasets, setDatasets] = useState([]);
+    const [datasets, setDatasets] =
+        useState([]);
 
     const [selectedDataset, setSelectedDataset] =
         useState("");
@@ -44,9 +55,29 @@ function DatasetSelector({
     const firstLoadRef =
         useRef(true);
 
+    const mountedRef =
+        useRef(true);
+
 
     // ============================================================
-    // KEEP REF IN SYNC
+    // MOUNT / UNMOUNT
+    // ============================================================
+
+    useEffect(() => {
+
+        mountedRef.current = true;
+
+        return () => {
+
+            mountedRef.current = false;
+
+        };
+
+    }, []);
+
+
+    // ============================================================
+    // KEEP SELECTED DATASET REF IN SYNC
     // ============================================================
 
     useEffect(() => {
@@ -54,432 +85,637 @@ function DatasetSelector({
         selectedDatasetRef.current =
             selectedDataset;
 
-    }, [selectedDataset]);
+    }, [
+        selectedDataset
+    ]);
 
 
     // ============================================================
     // GET DATASET NAME
     // ============================================================
 
-    const getDatasetName = (dataset) => {
+    const getDatasetName = useCallback(
+        (dataset) => {
 
-        if (typeof dataset === "string") {
+            if (
+                typeof dataset === "string"
+            ) {
 
-            return dataset;
+                return dataset;
 
-        }
+            }
 
-        return dataset?.name || "";
+            return dataset?.name || "";
 
-    };
+        },
+        []
+    );
+
+
+    // ============================================================
+    // CHECK WHETHER DATASET LIST ACTUALLY CHANGED
+    //
+    // This is VERY important.
+    //
+    // MinIO may return a new array every 5 seconds even though
+    // the actual dataset list is identical.
+    //
+    // We don't want to call setDatasets() in that case.
+    // ============================================================
+
+    const areDatasetListsEqual = useCallback(
+        (
+            previous,
+            next
+        ) => {
+
+            if (
+                previous.length !==
+                next.length
+            ) {
+
+                return false;
+
+            }
+
+
+            for (
+                let index = 0;
+                index < next.length;
+                index++
+            ) {
+
+                const previousName =
+                    getDatasetName(
+                        previous[index]
+                    );
+
+                const nextName =
+                    getDatasetName(
+                        next[index]
+                    );
+
+
+                if (
+                    previousName !==
+                    nextName
+                ) {
+
+                    return false;
+
+                }
+
+
+                const previousSize =
+                    typeof previous[index] ===
+                    "object"
+                        ? previous[index]?.size
+                        : undefined;
+
+                const nextSize =
+                    typeof next[index] ===
+                    "object"
+                        ? next[index]?.size
+                        : undefined;
+
+
+                if (
+                    previousSize !==
+                    nextSize
+                ) {
+
+                    return false;
+
+                }
+
+            }
+
+
+            return true;
+
+        },
+        [
+            getDatasetName
+        ]
+    );
 
 
     // ============================================================
     // LOAD ONE DATASET
+    //
+    // This function is ONLY called when the user actually
+    // selects a dataset, or during the very first application
+    // load.
+    //
+    // It is NOT called by the 5-second MinIO polling.
     // ============================================================
 
-    const loadDataset = useCallback(async (filename) => {
-
-        if (!filename) {
-            return;
-        }
-
-        setLoadingDataset(true);
-
-        setError("");
-
-        try {
-
-            console.log(
-                "Loading dataset:",
-                filename
-            );
-
-
-            const response =
-                await fetch(
-                    `${API_URL}/datasets/${encodeURIComponent(filename)}`,
-                    {
-                        method: "GET",
-                        cache: "no-store"
-                    }
-                );
-
-
-            const responseText =
-                await response.text();
-
-
-            if (!response.ok) {
-
-                let message =
-                    `Unable to load dataset (${response.status})`;
-
-
-                try {
-
-                    const errorData =
-                        JSON.parse(responseText);
-
-
-                    if (errorData.detail) {
-
-                        message =
-                            errorData.detail;
-
-                    }
-
-                }
-                catch {
-
-                    if (responseText) {
-
-                        message =
-                            responseText;
-
-                    }
-
-                }
-
-
-                throw new Error(message);
-
-            }
-
-
-            let analysis;
-
-
-            try {
-
-                analysis =
-                    JSON.parse(responseText);
-
-            }
-            catch {
-
-                throw new Error(
-                    "FastAPI returned invalid JSON."
-                );
-
-            }
-
-
-            console.log(
-                "Loaded dataset:",
-                analysis.filename
-            );
-
-
-            // ----------------------------------------------------
-            // Send complete dataset to Dashboard
-            // ----------------------------------------------------
-
-            if (
-                typeof onDatasetLoaded ===
-                "function"
-            ) {
-
-                onDatasetLoaded(
-                    analysis
-                );
-
-            }
-
-        }
-        catch (err) {
-
-            console.error(
-                "DATASET LOAD ERROR:",
-                err
-            );
-
-
-            setError(
-                err.message ||
-                "Unable to load selected dataset."
-            );
-
-        }
-        finally {
-
-            setLoadingDataset(false);
-
-        }
-
-    }, [onDatasetLoaded]);
-
-
-    // ============================================================
-    // LOAD DATASETS FROM MINIO
-    // ============================================================
-
-    const loadDatasets = useCallback(async (
-        autoSelectLatest = false,
-        showLoading = true
-    ) => {
-
-        if (showLoading) {
-
-            setLoading(true);
-
-        }
-
-        setError("");
-
-
-        try {
-
-            const response =
-                await fetch(
-                    `${API_URL}/datasets`,
-                    {
-                        method: "GET",
-
-                        // Prevent browser caching
-                        cache: "no-store",
-
-                        headers: {
-                            "Cache-Control": "no-cache"
-                        }
-                    }
-                );
-
-
-            const responseText =
-                await response.text();
-
-
-            if (!response.ok) {
-
-                let message =
-                    `Unable to load datasets (${response.status})`;
-
-
-                try {
-
-                    const errorData =
-                        JSON.parse(responseText);
-
-
-                    if (errorData.detail) {
-
-                        message =
-                            errorData.detail;
-
-                    }
-
-                }
-                catch {
-
-                    if (responseText) {
-
-                        message =
-                            responseText;
-
-                    }
-
-                }
-
-
-                throw new Error(message);
-
-            }
-
-
-            let result;
-
-
-            try {
-
-                result =
-                    JSON.parse(responseText);
-
-            }
-            catch {
-
-                throw new Error(
-                    "FastAPI returned invalid JSON."
-                );
-
-            }
-
-
-            const datasetList =
-                Array.isArray(result.datasets)
-                    ? result.datasets
-                    : [];
-
-
-            console.log(
-                "MinIO datasets:",
-                datasetList
-            );
-
-
-            // ====================================================
-            // UPDATE DATASET LIST
-            // ====================================================
-
-            setDatasets(
-                datasetList
-            );
-
-
-            const currentSelected =
-                selectedDatasetRef.current;
-
-
-            const datasetNames =
-                datasetList
-                    .map(getDatasetName)
-                    .filter(Boolean);
-
-
-            // ====================================================
-            // AUTO SELECT NEWEST DATASET
-            // ====================================================
-
-            if (
-                autoSelectLatest &&
-                datasetNames.length > 0
-            ) {
-
-                const latestDataset =
-                    datasetNames[0];
-
-
-                setSelectedDataset(
-                    latestDataset
-                );
-
-
-                selectedDatasetRef.current =
-                    latestDataset;
-
-
-                await loadDataset(
-                    latestDataset
-                );
-
+    const loadDataset = useCallback(
+        async (
+            filename
+        ) => {
+
+            if (!filename) {
 
                 return;
 
             }
 
 
-            // ====================================================
-            // KEEP CURRENT DATASET SELECTED
-            // ====================================================
+            setLoadingDataset(true);
 
-            if (
-                currentSelected &&
-                datasetNames.includes(
-                    currentSelected
-                )
-            ) {
-
-                // Current dataset still exists.
-                // Do not reload it every 5 seconds.
-
-                return;
-
-            }
+            setError("");
 
 
-            // ====================================================
-            // CURRENT DATASET WAS DELETED
-            // ====================================================
-
-            if (
-                currentSelected &&
-                !datasetNames.includes(
-                    currentSelected
-                )
-            ) {
+            try {
 
                 console.log(
-                    "Selected dataset no longer exists:",
-                    currentSelected
+                    "Loading dataset:",
+                    filename
                 );
 
 
-                setSelectedDataset("");
+                const response =
+                    await fetch(
+                        `${API_URL}/datasets/${encodeURIComponent(filename)}`,
+                        {
+                            method: "GET",
+                            cache: "no-store"
+                        }
+                    );
 
-                selectedDatasetRef.current =
-                    "";
+
+                const responseText =
+                    await response.text();
+
+
+                if (!response.ok) {
+
+                    let message =
+                        `Unable to load dataset (${response.status})`;
+
+
+                    try {
+
+                        const errorData =
+                            JSON.parse(
+                                responseText
+                            );
+
+
+                        if (
+                            errorData.detail
+                        ) {
+
+                            message =
+                                errorData.detail;
+
+                        }
+
+                    }
+                    catch {
+
+                        if (
+                            responseText
+                        ) {
+
+                            message =
+                                responseText;
+
+                        }
+
+                    }
+
+
+                    throw new Error(
+                        message
+                    );
+
+                }
+
+
+                let analysis;
+
+
+                try {
+
+                    analysis =
+                        JSON.parse(
+                            responseText
+                        );
+
+                }
+                catch {
+
+                    throw new Error(
+                        "FastAPI returned invalid JSON."
+                    );
+
+                }
+
+
+                console.log(
+                    "Loaded dataset:",
+                    analysis.filename
+                );
+
+
+                if (
+                    typeof onDatasetLoaded ===
+                    "function"
+                ) {
+
+                    onDatasetLoaded(
+                        analysis
+                    );
+
+                }
+
+            }
+            catch (err) {
+
+                console.error(
+                    "DATASET LOAD ERROR:",
+                    err
+                );
+
+
+                if (
+                    mountedRef.current
+                ) {
+
+                    setError(
+                        err.message ||
+                        "Unable to load selected dataset."
+                    );
+
+                }
+
+            }
+            finally {
+
+                if (
+                    mountedRef.current
+                ) {
+
+                    setLoadingDataset(
+                        false
+                    );
+
+                }
 
             }
 
-
-            // ====================================================
-            // FIRST LOAD
-            // ====================================================
-
-            if (
-                firstLoadRef.current &&
-                datasetNames.length > 0
-            ) {
-
-                const latestDataset =
-                    datasetNames[0];
+        },
+        [
+            onDatasetLoaded
+        ]
+    );
 
 
-                setSelectedDataset(
-                    latestDataset
-                );
+    // ============================================================
+    // LOAD DATASET LIST FROM MINIO
+    //
+    // IMPORTANT:
+    //
+    // autoSelectLatest=true:
+    //     Used ONLY on initial load.
+    //
+    // autoSelectLatest=false:
+    //     Used for polling / manual refresh.
+    //
+    // loadSelectedDataset=false:
+    //     Refresh the MinIO list WITHOUT loading the dataset.
+    // ============================================================
 
-
-                selectedDatasetRef.current =
-                    latestDataset;
-
-
-                await loadDataset(
-                    latestDataset
-                );
-
-            }
-
-
-            firstLoadRef.current =
-                false;
-
-        }
-        catch (err) {
-
-            console.error(
-                "DATASET LIST ERROR:",
-                err
-            );
-
-
-            // During automatic polling, don't destroy
-            // the existing dropdown because of a temporary
-            // network error.
+    const loadDatasets = useCallback(
+        async (
+            autoSelectLatest = false,
+            showLoading = true,
+            loadSelectedDataset = false
+        ) => {
 
             if (showLoading) {
 
-                setError(
-                    err.message ||
-                    "Unable to load datasets from MinIO."
-                );
-
-                setDatasets([]);
+                setLoading(true);
 
             }
 
-        }
-        finally {
 
             if (showLoading) {
 
-                setLoading(false);
+                setError("");
 
             }
 
-        }
 
-    }, [loadDataset]);
+            try {
+
+                const response =
+                    await fetch(
+                        `${API_URL}/datasets`,
+                        {
+                            method: "GET",
+                            cache: "no-store",
+                            headers: {
+                                "Cache-Control":
+                                    "no-cache"
+                            }
+                        }
+                    );
+
+
+                const responseText =
+                    await response.text();
+
+
+                if (!response.ok) {
+
+                    let message =
+                        `Unable to load datasets (${response.status})`;
+
+
+                    try {
+
+                        const errorData =
+                            JSON.parse(
+                                responseText
+                            );
+
+
+                        if (
+                            errorData.detail
+                        ) {
+
+                            message =
+                                errorData.detail;
+
+                        }
+
+                    }
+                    catch {
+
+                        if (
+                            responseText
+                        ) {
+
+                            message =
+                                responseText;
+
+                        }
+
+                    }
+
+
+                    throw new Error(
+                        message
+                    );
+
+                }
+
+
+                let result;
+
+
+                try {
+
+                    result =
+                        JSON.parse(
+                            responseText
+                        );
+
+                }
+                catch {
+
+                    throw new Error(
+                        "FastAPI returned invalid JSON."
+                    );
+
+                }
+
+
+                const datasetList =
+                    Array.isArray(
+                        result.datasets
+                    )
+                        ? result.datasets
+                        : [];
+
+
+                console.log(
+                    "MinIO datasets:",
+                    datasetList
+                );
+
+
+                // =================================================
+                // ONLY UPDATE STATE IF LIST ACTUALLY CHANGED
+                // =================================================
+
+                setDatasets(
+                    previous => {
+
+                        if (
+                            areDatasetListsEqual(
+                                previous,
+                                datasetList
+                            )
+                        ) {
+
+                            return previous;
+
+                        }
+
+
+                        return datasetList;
+
+                    }
+                );
+
+
+                const datasetNames =
+                    datasetList
+                        .map(
+                            getDatasetName
+                        )
+                        .filter(Boolean);
+
+
+                const currentSelected =
+                    selectedDatasetRef.current;
+
+
+                // =================================================
+                // FIRST APPLICATION LOAD
+                //
+                // Load newest dataset exactly once.
+                // =================================================
+
+                if (
+                    firstLoadRef.current &&
+                    datasetNames.length > 0
+                ) {
+
+                    const latestDataset =
+                        datasetNames[0];
+
+
+                    firstLoadRef.current =
+                        false;
+
+
+                    selectedDatasetRef.current =
+                        latestDataset;
+
+
+                    setSelectedDataset(
+                        latestDataset
+                    );
+
+
+                    await loadDataset(
+                        latestDataset
+                    );
+
+
+                    return;
+
+                }
+
+
+                firstLoadRef.current =
+                    false;
+
+
+                // =================================================
+                // UPLOAD REFRESH
+                //
+                // The upload already loaded the data through
+                // Upload.jsx -> Dashboard.jsx.
+                //
+                // Therefore we ONLY select the filename here.
+                //
+                // DO NOT call loadDataset().
+                // =================================================
+
+                if (
+                    loadSelectedDataset &&
+                    uploadedDatasetName &&
+                    datasetNames.includes(
+                        uploadedDatasetName
+                    )
+                ) {
+
+                    selectedDatasetRef.current =
+                        uploadedDatasetName;
+
+
+                    setSelectedDataset(
+                        uploadedDatasetName
+                    );
+
+
+                    return;
+
+                }
+
+
+                // =================================================
+                // KEEP CURRENT DATASET
+                // =================================================
+
+                if (
+                    currentSelected &&
+                    datasetNames.includes(
+                        currentSelected
+                    )
+                ) {
+
+                    // Nothing to do.
+                    //
+                    // Most importantly:
+                    //
+                    // DO NOT reload the dataset.
+
+                    return;
+
+                }
+
+
+                // =================================================
+                // CURRENT DATASET DISAPPEARED
+                // =================================================
+
+                if (
+                    currentSelected &&
+                    !datasetNames.includes(
+                        currentSelected
+                    )
+                ) {
+
+                    console.log(
+                        "Selected dataset no longer exists:",
+                        currentSelected
+                    );
+
+
+                    selectedDatasetRef.current =
+                        "";
+
+                    setSelectedDataset(
+                        ""
+                    );
+
+                }
+
+            }
+            catch (err) {
+
+                console.error(
+                    "DATASET LIST ERROR:",
+                    err
+                );
+
+
+                // Never destroy the existing dropdown during
+                // silent polling.
+
+                if (
+                    showLoading &&
+                    mountedRef.current
+                ) {
+
+                    setError(
+                        err.message ||
+                        "Unable to load datasets from MinIO."
+                    );
+
+                }
+
+            }
+            finally {
+
+                if (
+                    showLoading &&
+                    mountedRef.current
+                ) {
+
+                    setLoading(
+                        false
+                    );
+
+                }
+
+            }
+
+        },
+        [
+            areDatasetListsEqual,
+            getDatasetName,
+            loadDataset,
+            uploadedDatasetName
+        ]
+    );
 
 
     // ============================================================
@@ -489,46 +725,44 @@ function DatasetSelector({
     useEffect(() => {
 
         loadDatasets(
-            false,
-            true
+            true,
+            true,
+            false
         );
 
-    }, [loadDatasets]);
+    }, [
+        loadDatasets
+    ]);
 
 
     // ============================================================
-    // AUTOMATIC MINIO REFRESH
+    // MINIO POLLING
     //
-    // Checks MinIO every 5 seconds.
+    // This only checks whether the LIST changed.
     //
-    // Example:
-    //
-    // 10:00:00 -> dataset list loaded
-    //
-    // 10:00:05 -> MinIO checked
-    //
-    // 10:00:10 -> MinIO checked
-    //
-    // If a new Excel file was manually added to MinIO,
-    // it will appear automatically.
+    // It NEVER reloads the active dataset.
     // ============================================================
 
     useEffect(() => {
 
         const intervalId =
-            setInterval(() => {
+            setInterval(
+                () => {
 
-                console.log(
-                    "Checking MinIO for new datasets..."
-                );
+                    console.log(
+                        "Checking MinIO for new datasets..."
+                    );
 
 
-                loadDatasets(
-                    false,
-                    false
-                );
+                    loadDatasets(
+                        false,
+                        false,
+                        false
+                    );
 
-            }, AUTO_REFRESH_INTERVAL);
+                },
+                AUTO_REFRESH_INTERVAL
+            );
 
 
         return () => {
@@ -539,28 +773,43 @@ function DatasetSelector({
 
         };
 
-    }, [loadDatasets]);
+    }, [
+        loadDatasets
+    ]);
 
 
     // ============================================================
     // REFRESH AFTER UPLOAD
+    //
+    // IMPORTANT:
+    //
+    // Upload.jsx already loaded the uploaded file and Dashboard
+    // already has the data.
+    //
+    // Therefore this refresh ONLY updates the dropdown.
     // ============================================================
 
     useEffect(() => {
 
-        if (refreshKey > 0) {
+        if (
+            refreshKey <= 0
+        ) {
 
-            console.log(
-                "Upload completed. Refreshing MinIO datasets..."
-            );
-
-
-            loadDatasets(
-                true,
-                true
-            );
+            return;
 
         }
+
+
+        console.log(
+            "Upload completed. Refreshing MinIO list only..."
+        );
+
+
+        loadDatasets(
+            false,
+            true,
+            true
+        );
 
     }, [
         refreshKey,
@@ -580,13 +829,30 @@ function DatasetSelector({
             event.target.value;
 
 
-        setSelectedDataset(
-            filename
-        );
+        if (!filename) {
+
+            return;
+
+        }
+
+
+        if (
+            filename ===
+            selectedDatasetRef.current
+        ) {
+
+            return;
+
+        }
 
 
         selectedDatasetRef.current =
             filename;
+
+
+        setSelectedDataset(
+            filename
+        );
 
 
         await loadDataset(
@@ -598,13 +864,18 @@ function DatasetSelector({
 
     // ============================================================
     // MANUAL REFRESH
+    //
+    // Manual refresh only refreshes the list.
+    //
+    // It does NOT reload the selected dataset.
     // ============================================================
 
     const handleRefresh = async () => {
 
         await loadDatasets(
             false,
-            true
+            true,
+            false
         );
 
     };
@@ -644,11 +915,15 @@ function DatasetSelector({
                 </Typography>
 
 
-                <Tooltip title="Refresh datasets">
+                <Tooltip
+                    title="Refresh datasets"
+                >
 
                     <IconButton
                         size="small"
-                        onClick={handleRefresh}
+                        onClick={
+                            handleRefresh
+                        }
                         disabled={
                             loading ||
                             loadingDataset
@@ -687,7 +962,7 @@ function DatasetSelector({
 
 
             {/* ================================================= */}
-            {/* LOADING */}
+            {/* LOADING LIST */}
             {/* ================================================= */}
 
             {loading ? (
@@ -739,27 +1014,21 @@ function DatasetSelector({
 
 
                     <Select
-
                         value={
                             selectedDataset
                         }
-
                         label="Select Dataset"
-
                         onChange={
                             handleDatasetChange
                         }
-
                         disabled={
                             loadingDataset
                         }
-
                     >
 
                         {datasets.map(
                             (
-                                dataset,
-                                index
+                                dataset
                             ) => {
 
                                 const filename =
@@ -769,7 +1038,9 @@ function DatasetSelector({
 
 
                                 if (!filename) {
+
                                     return null;
+
                                 }
 
 
@@ -777,7 +1048,7 @@ function DatasetSelector({
 
                                     <MenuItem
                                         key={
-                                            `${filename}-${index}`
+                                            filename
                                         }
                                         value={
                                             filename
@@ -796,9 +1067,9 @@ function DatasetSelector({
                     </Select>
 
 
-                    {/* ================================================= */}
-                    {/* LOADING SELECTED DATASET */}
-                    {/* ================================================= */}
+                    {/* ============================================= */}
+                    {/* DATASET LOADING */}
+                    {/* ============================================= */}
 
                     {loadingDataset && (
 
